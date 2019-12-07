@@ -1,17 +1,36 @@
-#using Random
-#rng = MersenneTwister(1111)
+using Random
+Random.seed!(1234)
 
-Dim = 1
+Dim = 2
 nX = 4
 nY = 4
-PBC = true
+PBC = false 
 
-#Spin = Array{Int,Dim}[]
-#S = rand(rng)
+#one-dimensional lattice
+if Dim == 1
+    nSpin = nX
+    Spin = rand([0,1],nX) #Random spin configuration
+	if PBC == true
+       nBond = nSpin
+	else
+       nBond = nSpin-1
+	end
 
-Spin = rand([0,1],nX,nY)
-Spin = 2*Spin - 1
+#two-dimensional lattice
+elseif Dim == 2
+    nSpin = nX*nY
+    Spin = rand([0,1],nX,nY) #Random spin configuration
+    if PBC == true
+       nBond = 2*nSpin
+	else
+       nBond = nSpin-nX-nY
+	end
 
-println(Dim)
-println(PBC)
-println(Spin)
+else 
+    println("Dimension error")
+end
+
+println("Dimension ",Dim)
+println("PBC ",PBC)
+println("Spin config ",Spin)
+println("Number of bonds ", nBond)
