@@ -4,7 +4,7 @@ Random.seed!(1234)
 Dim = 2
 nX = 4
 nY = 4
-PBC = false
+PBC = true
 
 #one-dimensional lattice
 if Dim == 1
@@ -27,8 +27,8 @@ if Dim == 1
 
     println(bond_spin)
 
-#two-dimensional square lattice
-elseif Dim == 2
+#two-dimensional square lattice OBC
+elseif Dim == 2 && PBC == false
     nSpin = nX*nY
     Spin = rand([0,1],nX,nY) #Random spin configuration
     if PBC == true
@@ -40,25 +40,27 @@ elseif Dim == 2
     bond_spin = zeros(nBond,2) #assign site indices to bonds
     cnt=1
     for i = 1:div(nBond,2) #horizontal
-		#println(i," ",cnt)
-        if mod(i,nX) != 0 
+        #println(i," ",cnt)
+        if mod(i,nX-1) != 0 
             bond_spin[i,1] = cnt 
+            bond_spin[i,2] = cnt + 1
             global cnt += 1
-            bond_spin[i,2] = cnt
         else
-            global cnt += 1
             bond_spin[i,1] = cnt 
-            global cnt += 1
-            bond_spin[i,2] = cnt
+            bond_spin[i,2] = cnt + 1
+            global cnt += 2
         end
     end
-	global cnt = 1
+    global cnt = 1
     for i = (div(nBond,2)+1):nBond #vertical
         bond_spin[i,1] = cnt 
         bond_spin[i,2] = cnt + nX
         global cnt += 1
     end
 
+#two-dimensional square lattice PBC
+elseif Dim == 2 && PBC == true
+    println("PBC 2D ")
 
 #    if PBC == true
 #        bond_spin[nBond,2] = 1
@@ -73,3 +75,7 @@ println("PBC ",PBC)
 println("Spin config ",Spin)
 println("Number of bonds ", nBond)
 println(bond_spin)
+
+for i = 1:nBond
+    println(i," ",bond_spin[i,1]," ",bond_spin[i,2])
+end
