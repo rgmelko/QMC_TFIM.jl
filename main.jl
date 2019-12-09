@@ -31,13 +31,9 @@ if Dim == 1
 elseif Dim == 2 && PBC == false
     nSpin = nX*nY
     Spin = rand([0,1],nX,nY) #Random spin configuration
-    if PBC == true
-       nBond = 2*nSpin
-    else
-       nBond = 2*nSpin-nX-nY
-    end
-
+    nBond = 2*nSpin-nX-nY
     bond_spin = zeros(nBond,2) #assign site indices to bonds
+
     cnt=1
     for i = 1:div(nBond,2) #horizontal
         #println(i," ",cnt)
@@ -60,11 +56,21 @@ elseif Dim == 2 && PBC == false
 
 #two-dimensional square lattice PBC
 elseif Dim == 2 && PBC == true
-    println("PBC 2D ")
+    nSpin = nX*nY
+    Spin = rand([0,1],nX,nY) #Random spin configuration
+    nBond = 2*nSpin
+    bond_spin = zeros(nBond,2) #assign site indices to bonds
 
-#    if PBC == true
-#        bond_spin[nBond,2] = 1
-#    end
+    for i = 1:nSpin
+        bond_spin[i,1] = 2*i - 1
+        bond_spin[i,2] = 2*i 
+        if mod(i,nX) == 0     #fix the PBCs
+            bond_spin[i,1] -= nX
+        end
+        if i > nBond - nX
+            bond_spin[i,2] = mod(i,nX)
+        end
+    end
 
 else 
     println("Dimension error")
