@@ -62,13 +62,18 @@ elseif Dim == 2 && PBC == true
     bond_spin = zeros(nBond,2) #assign site indices to bonds
 
     for i = 1:nSpin
-        bond_spin[i,1] = 2*i - 1
-        bond_spin[i,2] = 2*i 
-        if mod(i,nX) == 0     #fix the PBCs
-            bond_spin[i,1] -= nX
+        bond1 = 2*i - 1 #horizontal
+        bond_spin[bond1,1] = i
+        bond_spin[bond1,2] = i+1
+        if mod(i,nX) == 0
+            bond_spin[bond1,2] -= nX
         end
-        if i > nBond - nX
-            bond_spin[i,2] = mod(i,nX)
+
+        bond2 = 2*i     #vertical
+        bond_spin[bond2,1] = i
+        bond_spin[bond2,2] = i+nX
+        if i > (nSpin - nX)
+            bond_spin[bond2,2] -= nSpin
         end
     end
 
