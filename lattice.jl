@@ -23,7 +23,7 @@ if Dim == 1
        nBond = nSpin-1
     end
 
-    bond_spin = zeros(nBond,2) #assign site indices to bonds
+    bond_spin = zeros(Int,nBond,2) #assign site indices to bonds
     for i = 1:nBond
         bond_spin[i,1] = i
         bond_spin[i,2] = i+1
@@ -38,7 +38,7 @@ if Dim == 1
 elseif Dim == 2 && PBC == false
     nSpin = nX*nY
     nBond = 2*nSpin-nX-nY
-    bond_spin = zeros(nBond,2) #assign site indices to bonds
+    bond_spin = zeros(Int,nBond,2) #assign site indices to bonds
 
     cnt=1
     for i = 1:div(nBond,2) #horizontal
@@ -64,7 +64,7 @@ elseif Dim == 2 && PBC == false
 elseif Dim == 2 && PBC == true
     nSpin = nX*nY
     nBond = 2*nSpin
-    bond_spin = zeros(nBond,2) #assign site indices to bonds
+    bond_spin = zeros(Int,nBond,2) #assign site indices to bonds
 
     for i = 1:nSpin
         bond1 = 2*i - 1 #horizontal
@@ -89,7 +89,7 @@ end
 # println("Dimension ",Dim)
 # println("PBC ",PBC)
 # println("Number of bonds ", nBond)
-# println(bond_spin)
+ println(bond_spin)
 # 
 # for i = 1:nBond
 #     println(i," ",bond_spin[i,1]," ",bond_spin[i,2])
