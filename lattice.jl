@@ -17,7 +17,6 @@ end
 #one-dimensional lattice
 if Dim == 1
     nSpin = nX
-    #Spin = rand([0,1],nX) #Random spin configuration
     if PBC == true
        nBond = nSpin
     else
@@ -38,7 +37,6 @@ if Dim == 1
 #two-dimensional square lattice OBC
 elseif Dim == 2 && PBC == false
     nSpin = nX*nY
-    #Spin = rand([0,1],nX,nY) #Random spin configuration
     nBond = 2*nSpin-nX-nY
     bond_spin = zeros(nBond,2) #assign site indices to bonds
 
@@ -65,7 +63,6 @@ elseif Dim == 2 && PBC == false
 #two-dimensional square lattice PBC
 elseif Dim == 2 && PBC == true
     nSpin = nX*nY
-    #Spin = rand([0,1],nX,nY) #Random spin configuration
     nBond = 2*nSpin
     bond_spin = zeros(nBond,2) #assign site indices to bonds
 
@@ -89,12 +86,11 @@ else
     println("Dimension error")
 end
 
-println("Dimension ",Dim)
-println("PBC ",PBC)
-#println("Spin config ",Spin)
-println("Number of bonds ", nBond)
-println(bond_spin)
-
-for i = 1:nBond
-    println(i," ",bond_spin[i,1]," ",bond_spin[i,2])
-end
+# println("Dimension ",Dim)
+# println("PBC ",PBC)
+# println("Number of bonds ", nBond)
+# println(bond_spin)
+# 
+# for i = 1:nBond
+#     println(i," ",bond_spin[i,1]," ",bond_spin[i,2])
+# end
