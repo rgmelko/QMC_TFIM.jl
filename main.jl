@@ -5,9 +5,17 @@ include("lattice.jl") #define the spatial lattice
 #Projector parameters
 
 M = 10 #length of the projector operator_list is 2M
+h_x = 1.0
+J_ = 1.0
 
 spin_left = fill(1,nSpin) #left and right trail spin state
 spin_right = fill(1,nSpin)
+
+#define the Metropolis probability as a constant
+#https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
+#equation 1.43
+const P_h = h_x*nSpin/(h_x*nSpin +2.0*J_*nBond) #J=1.0 tested only
+
 
 operator_list = fill(0,(2*M,2))
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
@@ -30,11 +38,16 @@ for i = 1:2*M
 end
 
 
-
+#propagate the spin state through the operator list
+#spin_prop = copy(spin_left)
+for i = 1:2*M
+    #spin_prop[1] = 0
+end
 
 println(M)
 println(spin_left)
 println(spin_right)
+#println(spin_prop)
 println(operator_list)
 
 rr = rand()
