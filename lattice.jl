@@ -6,7 +6,7 @@
 using Random
 Random.seed!(1234)
 
-Dim = 2
+Dim = 1
 nX = 4
 PBC = true
 
@@ -32,7 +32,7 @@ if Dim == 1
         bond_spin[nBond,2] = 1
     end
 
-    println(bond_spin)
+    #println(bond_spin)
 
 #two-dimensional square lattice OBC
 elseif Dim == 2 && PBC == false
@@ -89,7 +89,7 @@ end
 # println("Dimension ",Dim)
 # println("PBC ",PBC)
 # println("Number of bonds ", nBond)
- println(bond_spin)
+# println(bond_spin)
 # 
 # for i = 1:nBond
 #     println(i," ",bond_spin[i,1]," ",bond_spin[i,2])

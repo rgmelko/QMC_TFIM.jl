@@ -1,9 +1,10 @@
 # main.jl
 
 include("lattice.jl") #define the spatial lattice
+include("updates.jl") #functions for the Monte Carlo updates
 
 #Projector parameters
-M = 10 #length of the projector operator_list is 2M
+M = 4 #length of the projector operator_list is 2M
 h_x = 1.0
 J_ = 1.0
 
@@ -31,14 +32,14 @@ function DiagonalUpdate()
                    site = rand(1:nSpin)
                    operator_list[i,2] = site
                    flag = true
-                   println(i," site")
+                   println(i," site ",site)
                else
                    bond = rand(1:nBond)
                    if spin_prop[bond_spin[bond,1]] == spin_prop[bond_spin[bond,2]] #spins must be the same
                        operator_list[i,1] = bond_spin[bond,1]
                        operator_list[i,2] = bond_spin[bond,2]
                        flag = true
-                       println(i," bond")
+                       println(i," bond ",bond)
                    end#if
                    #println(P_h," ",rr," bond")
                end
@@ -59,6 +60,7 @@ end #DiagonalUpdate
 
 spin_left = fill(1,nSpin) #left and right trail spin state
 spin_right = fill(1,nSpin)
+println(spin_left)
 
 operator_list = fill(0,(2*M,2))
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
@@ -80,7 +82,10 @@ for i = 1:2*M
     end
 end
 
+println(operator_list)
 DiagonalUpdate()
+LinkedList()
+println(operator_list)
 
 #propagate the spin state through the operator list
 #spin_prop = copy(spin_left)
@@ -92,6 +97,5 @@ DiagonalUpdate()
 #println(spin_left)
 #println(spin_right)
 #println(spin_prop)
-println(operator_list)
 
 
