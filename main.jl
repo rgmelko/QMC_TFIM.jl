@@ -82,7 +82,6 @@ for i = 1:2*M
     end
 end
 
-println(operator_list)
 DiagonalUpdate()
 LinkedList()
 println(operator_list)
