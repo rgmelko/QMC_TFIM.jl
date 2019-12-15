@@ -17,35 +17,42 @@ const P_h = h_x*nSpin/(h_x*nSpin +2.0*J_*nBond) #J=1.0 tested only
 #Diagonal update
 function DiagonalUpdate()
     spin_prop = copy(spin_left)  #the propagated spin state
-	for i = 1:2*M  #size of the operator list
-	   #println(operator_list[i,1]," ",operator_list[i,2]) 
+    for i = 1:2*M  #size of the operator list
+       #println(operator_list[i,1]," ",operator_list[i,2]) 
 
-	   if operator_list[i,1] == -2
-		   println("off-diagonal operator at ",i)
+       if operator_list[i,1] == -2
+           println("off-diagonal operator at ",i)
        else
-		   flag = false
-		   while flag == false
-			   rr = rand() 
-			   if P_h > rr #probability to choose a single-site operator
-				   operator_list[i,1] = -1
+           flag = false
+           while flag == false
+               rr = rand() 
+               if P_h > rr #probability to choose a single-site operator
+                   operator_list[i,1] = -1
                    site = rand(1:nSpin)
-				   operator_list[i,2] = site
-				   flag = true
-				   println(i," site")
-			   else
+                   operator_list[i,2] = site
+                   flag = true
+                   println(i," site")
+               else
                    bond = rand(1:nBond)
-				   if spin_prop[bond_spin[bond,1]] == spin_prop[bond_spin[bond,2]] #spins must be the same
+                   if spin_prop[bond_spin[bond,1]] == spin_prop[bond_spin[bond,2]] #spins must be the same
                        operator_list[i,1] = bond_spin[bond,1]
                        operator_list[i,2] = bond_spin[bond,2]
-					   flag = true
-				       println(i," bond")
-				   end#if
-				   #println(P_h," ",rr," bond")
+                       flag = true
+                       println(i," bond")
+                   end#if
+                   #println(P_h," ",rr," bond")
                end
-		   end #while
+           end #while
 
-		end#if
+        end#if
     end #for
+
+    #DEBUG
+    if spin_prop != spin_right  #check the spin propagation for error
+        println("Basis state propagation error: DiagonalUpdate")
+    end
+
+
 end #DiagonalUpdate
 
 #############################################################################
@@ -62,15 +69,15 @@ operator_list = fill(0,(2*M,2))
 #initialize the operator list
 for i = 1:2*M
     coin = rand(Bool)
-	if coin == true #insert a diagonal site operator
+    if coin == true #insert a diagonal site operator
         site = rand(1:nSpin)
-		operator_list[i,1] = -1
-		operator_list[i,2] = site
-	else
+        operator_list[i,1] = -1
+        operator_list[i,2] = site
+    else
         bond = rand(1:nBond)
-		operator_list[i,1] = bond_spin[bond,1]
-		operator_list[i,2] = bond_spin[bond,2]
-	end
+        operator_list[i,1] = bond_spin[bond,1]
+        operator_list[i,2] = bond_spin[bond,2]
+    end
 end
 
 DiagonalUpdate()
