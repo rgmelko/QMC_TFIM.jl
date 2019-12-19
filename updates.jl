@@ -13,6 +13,7 @@ function LinkedList()
     Associates = zeros(Int,0)  
 
 	First = zeros(Int,0)  #scope is this function only
+
     #The first N elements of the linked list are the spins of the LHS basis state
 	for i = 1:nSpin
 		push!(First,i)
@@ -20,10 +21,6 @@ function LinkedList()
 		push!(LegType,spin_left[i])
 		#push!(Associates,spin_left[i])
 	end #i
-	println(First)
-	println(LinkList)
-	println(LegType)
-	println(Associates)
 
     spin_prop = copy(spin_left)  #the propagated spin state
 
@@ -34,13 +31,50 @@ function LinkedList()
 		   site = operator_list[i,2]
            spin_prop[i] = xor(spin_prop[i],1) #spinflip
 
-       elseif operator_list[i,1] == -1
-           println("diagonal site operator at ",i)
-	   else
-           println("diagonal bond operator at ",i)
+       elseif operator_list[i,1] == -1  #diagonal site operator
+		   site = operator_list[i,2]
+           #lower or left leg
+		   push!(LinkList,First[site])
+		   current_link = size(LinkList)
+		   LinkList[First[site]] = current_link[1] #completes backwards link
+		   First[site] = current_link[1] + 1
+           #upper or right leg
+		   push!(LinkList,-99) #we don't yet know what this links to
+
+	   else  #diagonal bond operator
+           #lower left
+		   site1 = operator_list[i,1]
+		   push!(LinkList,First[site1])
+		   current_link = size(LinkList)
+		   LinkList[First[site1]] = current_link[1] #completes backwards link
+		   First[site1] = current_link[1] + 2
+           #lower right
+		   site2 = operator_list[i,2]
+		   push!(LinkList,First[site2])
+		   current_link = size(LinkList)
+		   LinkList[First[site2]] = current_link[1] #completes backwards link
+		   First[site2] = current_link[1] + 2
+           #upper left
+		   push!(LinkList,-99) #we don't yet know what this links to
+           #upper right 
+		   push!(LinkList,-99) #we don't yet know what this links to
+
 	   end #if
 
 	end #i
+
+    #The last N elements of the linked list are the final spin state
+	for i = 1:nSpin
+		push!(LinkList,First[i]) 
+		current_link = size(LinkList)
+		LinkList[First[i]] = current_link[1]
+	end #i
+
+    lsize = size(LinkList)
+    for i = 1:lsize[1]
+       println(i," ",LinkList[i])
+	end
+
 end #LinkedList
 
 #############################################################################
