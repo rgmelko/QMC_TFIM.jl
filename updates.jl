@@ -35,29 +35,35 @@ function LinkedList()
 		   site = operator_list[i,2]
            #lower or left leg
 		   push!(LinkList,First[site])
+		   push!(LegType,spin_prop[site]) #the spin of the vertex leg
 		   current_link = size(LinkList)
 		   LinkList[First[site]] = current_link[1] #completes backwards link
 		   First[site] = current_link[1] + 1
            #upper or right leg
 		   push!(LinkList,-99) #we don't yet know what this links to
+		   push!(LegType,spin_prop[site]) #the spin of the vertex leg
 
 	   else  #diagonal bond operator
            #lower left
 		   site1 = operator_list[i,1]
 		   push!(LinkList,First[site1])
+		   push!(LegType,spin_prop[site1]) #the spin of the vertex leg
 		   current_link = size(LinkList)
 		   LinkList[First[site1]] = current_link[1] #completes backwards link
 		   First[site1] = current_link[1] + 2
            #lower right
 		   site2 = operator_list[i,2]
 		   push!(LinkList,First[site2])
+		   push!(LegType,spin_prop[site2]) #the spin of the vertex leg
 		   current_link = size(LinkList)
 		   LinkList[First[site2]] = current_link[1] #completes backwards link
 		   First[site2] = current_link[1] + 2
            #upper left
 		   push!(LinkList,-99) #we don't yet know what this links to
+		   push!(LegType,spin_prop[site1]) #the spin of the vertex leg
            #upper right 
 		   push!(LinkList,-99) #we don't yet know what this links to
+		   push!(LegType,spin_prop[site2]) #the spin of the vertex leg
 
 	   end #if
 
@@ -66,6 +72,7 @@ function LinkedList()
     #The last N elements of the linked list are the final spin state
 	for i = 1:nSpin
 		push!(LinkList,First[i]) 
+		push!(LegType,spin_prop[i]) 
 		current_link = size(LinkList)
 		LinkList[First[i]] = current_link[1]
 	end #i
@@ -74,6 +81,7 @@ function LinkedList()
     for i = 1:lsize[1]
        println(i," ",LinkList[i])
 	end
+	println(LegType," ",size(LegType))
 
 end #LinkedList
 
