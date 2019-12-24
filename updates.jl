@@ -4,7 +4,9 @@
 
 ############################ FUNCTIONS ######################################
 
+
 lsize = 0
+nullt = (0,0,0) #a null tuple
 
 #LinkedList
 function LinkedList()
@@ -14,9 +16,8 @@ function LinkedList()
     LegType = zeros(Int,0)  
 
     #A diagonal bond operator has non trivial associates for cluster building
-    nullt = (0,0,0) #a null tuple
     #Associates = zeros((Int,Int,Int),0)
-    Associates = []
+    global Associates = []
 
     First = zeros(Int,0)  #scope is this function only
 
@@ -125,11 +126,11 @@ function ClusterUpdate()
     for i = 1:lsize[1]
 
         #Add a new leg onto the cluster
-        #if (in_cluster[i] == 0 && Associates[i] == nullt)
+        if (in_cluster[i] == 0 && Associates[i] == nullt)
 
-        #    println("add new")
+            println("add new ",i)
 
-        #end #if
+        end #if
 
 
     end #for i

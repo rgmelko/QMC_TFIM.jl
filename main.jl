@@ -58,15 +58,22 @@ end #DiagonalUpdate
 
 #############################################################################
 
+#*******  Globals
 spin_left = fill(1,nSpin) #left and right trail spin state
 spin_right = fill(1,nSpin)
 println(spin_left)
+
+LinkList =[]
+LegType =[]
+Associates =[]
 
 operator_list = fill(0,(2*M,2))
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
 #  (-1,i) is a diagonal site operator h
 #  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
 #  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j)
+
+#*******  Globals
 
 #initialize the operator list
 for i = 1:2*M
@@ -85,7 +92,8 @@ end
 DiagonalUpdate()
 LinkedList()
 ClusterUpdate()
-println(operator_list)
+
+#println(operator_list)
 
 #propagate the spin state through the operator list
 #spin_prop = copy(spin_left)
