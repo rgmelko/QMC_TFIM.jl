@@ -84,6 +84,7 @@ end
 
 DiagonalUpdate()
 LinkedList()
+ClusterUpdate()
 println(operator_list)
 
 #propagate the spin state through the operator list

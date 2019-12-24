@@ -4,6 +4,8 @@
 
 ############################ FUNCTIONS ######################################
 
+lsize = 0
+
 #LinkedList
 function LinkedList()
 
@@ -90,14 +92,48 @@ function LinkedList()
         push!(Associates,nullt)
     end #i
 
-    lsize = size(LinkList)
+    global lsize = size(LinkList)
+
+    #DEBUG
     println(lsize)
     for i = 1:lsize[1]
        println(i," ",LinkList[i])
-       println(Associates[i])
+       #println(Associates[i])
+       #if Associates[i] == nullt
+       #    println("NULL")
+       #end
     end
     println(LegType," ",size(LegType))
+
+    #DEBUG
+    if spin_prop != spin_right
+        println("Basis state propagation error: LINKED LIST")
+    end
 
 end #LinkedList
 
 #############################################################################
+
+#ClusterUpdate
+function ClusterUpdate()
+
+    #lsize is the size of the linked list
+    in_cluster=zeros(Int,lsize[1])
+
+    cstack = zeros(Int,0)  #This is the stack of vertices in a cluster
+
+    for i = 1:lsize[1]
+
+        #Add a new leg onto the cluster
+        #if (in_cluster[i] == 0 && Associates[i] == nullt)
+
+        #    println("add new")
+
+        #end #if
+
+
+    end #for i
+
+end #ClusterUpdate
+
+
