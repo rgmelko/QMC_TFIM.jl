@@ -12,7 +12,7 @@ nullt = (0,0,0) #a null tuple
 function LinkedList()
 
     #initialize linked list data structures
-    LinkList = zeros(Int,0)  #needed for cluster update
+    global LinkList = zeros(Int,0)  #needed for cluster update
     global LegType = zeros(Int,0)  
 
     #A diagonal bond operator has non trivial associates for cluster building
@@ -139,7 +139,43 @@ function ClusterUpdate()
             if flip == true 
                 LegType[cstack[end]] =  xor(LegType[cstack[end]],1) #spinflip
             end
-            println("flipped ",flip," ",LegType[cstack[end]]) 
+            #println("flipped ",flip," ",LegType[cstack[end]]) 
+
+            while isempty(cstack) == false
+
+                leg = LinkList[cstack[end]]
+                pop!(cstack)
+                println("leg ",leg," ",cstack)
+
+                if in_cluster[leg] == 0
+
+                    in_cluster[leg] = ccount; #add the new leg and flip it 
+                    if flip == true 
+                        println("gonna flip ",leg)
+                        LegType[leg] =  xor(LegType[leg],1) 
+                    end
+                    #now check all associates and add to cluster
+                    assoc = Associates[leg] #a 3-element array
+                    if assoc != nullt
+                        push!(cstack,assoc[1])
+                        in_cluster[assoc[1]] = ccount
+                        push!(cstack,assoc[2])
+                        in_cluster[assoc[2]] = ccount
+                        push!(cstack,assoc[3])
+                        in_cluster[assoc[3]] = ccount
+                        if flip == true 
+                            LegType[assoc[1]] =  xor(LegType[assoc[1]],1) 
+                            LegType[assoc[2]] =  xor(LegType[assoc[2]],1) 
+                            LegType[assoc[3]] =  xor(LegType[assoc[3]],1) 
+                        end
+
+                    end #if
+                    
+
+                end #if
+
+
+            end #while
 
         end #if
 
