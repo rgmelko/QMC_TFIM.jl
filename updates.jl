@@ -13,7 +13,7 @@ function LinkedList()
 
     #initialize linked list data structures
     LinkList = zeros(Int,0)  #needed for cluster update
-    LegType = zeros(Int,0)  
+    global LegType = zeros(Int,0)  
 
     #A diagonal bond operator has non trivial associates for cluster building
     #Associates = zeros((Int,Int,Int),0)
@@ -123,6 +123,7 @@ function ClusterUpdate()
 
     cstack = zeros(Int,0)  #This is the stack of vertices in a cluster
 
+    ccount = 0 #cluster number counter
     for i = 1:lsize[1]
 
         #Add a new leg onto the cluster
@@ -130,10 +131,22 @@ function ClusterUpdate()
 
             println("add new ",i)
 
+            ccount+=1
+            push!(cstack,i) 
+            in_cluster[cstack[end]] = ccount  
+
+            flip = rand(Bool) #flip a coin for the SW cluster flip
+            if flip == true 
+                LegType[cstack[end]] =  xor(LegType[cstack[end]],1) #spinflip
+            end
+            println("flipped ",flip," ",LegType[cstack[end]]) 
+
         end #if
 
-
     end #for i
+
+    println(LegType)
+
 
 end #ClusterUpdate
 
