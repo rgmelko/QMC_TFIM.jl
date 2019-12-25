@@ -168,20 +168,43 @@ function ClusterUpdate()
                             LegType[assoc[2]] =  xor(LegType[assoc[2]],1) 
                             LegType[assoc[3]] =  xor(LegType[assoc[3]],1) 
                         end
-
                     end #if
-                    
-
-                end #if
-
-
+                end #if in_cluster == 0
             end #while
-
         end #if
-
     end #for i
 
-    println(LegType)
+    #DEBUG
+    for i = 1:lsize[1]
+        println(i," ",LegType[i]," ",in_cluster[i])
+    end
+
+    #map back basis states and operator list
+    ocount = 0
+    for i = 1:nSpin
+        spin_left[i] = LegType[i]  #left basis state
+        ocount += 1
+    end 
+
+    ocount += 1  #next on is leg nSpin + 1
+    for i = 1:2*M  
+        if operator_list[i,1] != -2 && operator_list[i,1] != -1
+            ocount += 4
+        else
+            if LegType[ocount] == LegType[ocount + 1]  #diagonal
+                operator_list[i,1] = -1
+                println("DCHANGE ",i," ",ocount)
+            else
+                operator_list[i,1] = -2 #off-diagonal
+                println("OCHANGE ",i," ",ocount)
+            end
+            ocount += 2
+        end
+    end
+
+    for i = 1:nSpin
+        spin_right[i] = LegType[lsize[1] - nSpin + i]  #left basis state
+    end 
 
 
 end #ClusterUpdate

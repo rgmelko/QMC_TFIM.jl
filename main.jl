@@ -93,7 +93,9 @@ DiagonalUpdate()
 LinkedList()
 ClusterUpdate()
 
-#println(operator_list)
+println(operator_list)
+println(spin_left)
+println(spin_right)
 
 #propagate the spin state through the operator list
 #spin_prop = copy(spin_left)
