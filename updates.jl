@@ -4,9 +4,51 @@
 
 ############################ FUNCTIONS ######################################
 
-
 lsize = 0
 nullt = (0,0,0) #a null tuple
+
+#Diagonal update
+function DiagonalUpdate()
+    spin_prop = copy(spin_left)  #the propagated spin state
+    for i = 1:2*M  #size of the operator list
+
+       if operator_list[i,1] == -2
+           spin_prop[operator_list[i,2]] = xor(spin_prop[operator_list[i,2]],1) #spinflip
+
+       else
+           flag = false
+           while flag == false
+               rr = rand() 
+               if P_h > rr #probability to choose a single-site operator
+                   operator_list[i,1] = -1
+                   site = rand(1:nSpin)
+                   operator_list[i,2] = site
+                   flag = true
+                   #println(i," site ",site)
+               else
+                   bond = rand(1:nBond)
+                   if spin_prop[bond_spin[bond,1]] == spin_prop[bond_spin[bond,2]] #spins must be the same
+                       operator_list[i,1] = bond_spin[bond,1]
+                       operator_list[i,2] = bond_spin[bond,2]
+                       flag = true
+                       #println(i," bond ",bond)
+                   end#if
+                   #println(P_h," ",rr," bond")
+               end
+           end #while
+
+        end#if
+    end #for
+
+    #DEBUG
+    if spin_prop != spin_right  #check the spin propagation for error
+        println("Basis state propagation error: DiagonalUpdate")
+    end
+
+
+end #DiagonalUpdate
+
+#############################################################################
 
 #LinkedList
 function LinkedList()
@@ -28,7 +70,6 @@ function LinkedList()
         push!(LegType,spin_left[i])
         push!(Associates,nullt) #no nontrivial associates for train wf spins
     end #i
-    println(Associates)
 
     spin_prop = copy(spin_left)  #the propagated spin state
 
@@ -107,15 +148,15 @@ function LinkedList()
     global lsize = size(LinkList)
 
     #DEBUG
-    println(lsize)
-    for i = 1:lsize[1]
-       println(i," ",LinkList[i])
-       #println(Associates[i])
-       #if Associates[i] == nullt
-       #    println("NULL")
-       #end
-    end
-    println(LegType," ",size(LegType))
+    #println(lsize)
+    #for i = 1:lsize[1]
+    #   println(i," ",LinkList[i])
+    #   #println(Associates[i])
+    #   #if Associates[i] == nullt
+    #   #    println("NULL")
+    #   #end
+    #end
+    #println(LegType," ",size(LegType))
 
     #DEBUG
     if spin_prop != spin_right
@@ -140,8 +181,6 @@ function ClusterUpdate()
         #Add a new leg onto the cluster
         if (in_cluster[i] == 0 && Associates[i] == nullt)
 
-            println("add new ",i)
-
             ccount+=1
             push!(cstack,i) 
             in_cluster[cstack[end]] = ccount  
@@ -150,19 +189,18 @@ function ClusterUpdate()
             if flip == true 
                 LegType[cstack[end]] =  xor(LegType[cstack[end]],1) #spinflip
             end
-            #println("flipped ",flip," ",LegType[cstack[end]]) 
 
             while isempty(cstack) == false
 
                 leg = LinkList[cstack[end]]
                 pop!(cstack)
-                println("leg ",leg," ",cstack)
+                #println("leg ",leg," ",cstack)
 
                 if in_cluster[leg] == 0
 
                     in_cluster[leg] = ccount; #add the new leg and flip it 
                     if flip == true 
-                        println("gonna flip ",leg)
+                        #println("gonna flip ",leg)
                         LegType[leg] =  xor(LegType[leg],1) 
                     end
                     #now check all associates and add to cluster
@@ -186,9 +224,9 @@ function ClusterUpdate()
     end #for i
 
     #DEBUG
-    for i = 1:lsize[1]
-        println(i," ",LegType[i]," ",in_cluster[i])
-    end
+    #for i = 1:lsize[1]
+    #    println(i," ",LegType[i]," ",in_cluster[i])
+    #end
 
     #map back basis states and operator list
     ocount = 0
@@ -204,10 +242,10 @@ function ClusterUpdate()
         else
             if LegType[ocount] == LegType[ocount + 1]  #diagonal
                 operator_list[i,1] = -1
-                println("DCHANGE ",i," ",ocount)
+                #println("DCHANGE ",i," ",ocount)
             else
                 operator_list[i,1] = -2 #off-diagonal
-                println("OCHANGE ",i," ",ocount)
+                #println("OCHANGE ",i," ",ocount)
             end
             ocount += 2
         end
