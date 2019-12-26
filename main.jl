@@ -22,7 +22,8 @@ function DiagonalUpdate()
        #println(operator_list[i,1]," ",operator_list[i,2]) 
 
        if operator_list[i,1] == -2
-           println("off-diagonal operator at ",i)
+           spin_prop[operator_list[i,2]] = xor(spin_prop[operator_list[i,2]],1) #spinflip
+
        else
            flag = false
            while flag == false
@@ -93,6 +94,11 @@ DiagonalUpdate()
 LinkedList()
 ClusterUpdate()
 
+println(operator_list)
+println(spin_left)
+println(spin_right)
+
+DiagonalUpdate()
 println(operator_list)
 println(spin_left)
 println(spin_right)
