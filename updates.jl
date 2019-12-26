@@ -37,7 +37,18 @@ function LinkedList()
 
        if operator_list[i,1] == -2  #off-diagonal site operator
            site = operator_list[i,2]
-           spin_prop[i] = xor(spin_prop[i],1) #spinflip
+           #lower or left leg
+           push!(LinkList,First[site])
+           push!(LegType,spin_prop[site]) #the spin of the vertex leg
+           spin_prop[site] = xor(spin_prop[site],1) #spinflip
+           current_link = size(LinkList)
+           LinkList[First[site]] = current_link[1] #completes backwards link
+           First[site] = current_link[1] + 1
+           push!(Associates,nullt)
+           #upper or right leg
+           push!(LinkList,-99) #we don't yet know what this links to
+           push!(LegType,spin_prop[site]) #the spin of the vertex leg
+           push!(Associates,nullt)
 
        elseif operator_list[i,1] == -1  #diagonal site operator
            site = operator_list[i,2]

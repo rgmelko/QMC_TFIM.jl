@@ -93,12 +93,13 @@ end
 DiagonalUpdate()
 LinkedList()
 ClusterUpdate()
-
-println(operator_list)
-println(spin_left)
-println(spin_right)
+#println(operator_list)
+#println(spin_left)
+#println(spin_right)
 
 DiagonalUpdate()
+LinkedList()
+ClusterUpdate()
 println(operator_list)
 println(spin_left)
 println(spin_right)
