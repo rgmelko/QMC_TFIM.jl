@@ -10,6 +10,12 @@ nullt = (0,0,0) #a null tuple
 
 #Diagonal update
 function DiagonalUpdate()
+
+#define the Metropolis probability as a constant
+#https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
+#equation 1.43
+P_h = h_x*nSpin/(h_x*nSpin +2.0*J_*nBond) #J=1.0 tested only
+
     spin_prop = copy(spin_left)  #the propagated spin state
     for i = 1:2*M  #size of the operator list
 

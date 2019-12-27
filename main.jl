@@ -7,15 +7,10 @@ include("updates.jl") #functions for the Monte Carlo updates
 include("measurements.jl") #functions for the Monte Carlo updates
 
 #Projector parameters
-M = 100 #length of the projector operator_list is 2M
+M = 300 #length of the projector operator_list is 2M
 h_x = 1.0
 J_ = 1.0
-MCS = 5000
-
-#define the Metropolis probability as a constant
-#https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
-#equation 1.43
-const P_h = h_x*nSpin/(h_x*nSpin +2.0*J_*nBond) #J=1.0 tested only
+MCS = 10000 #the number of Monte Carlo steps
 
 #*******  Globals
 spin_left = fill(1,nSpin) #left and right trail spin state
@@ -45,7 +40,7 @@ for i = 1:2*M
 end
 
 
-for i = 1:1000  #Equilibration
+for i = 1:2000  #Equilibration
     DiagonalUpdate()
     LinkedList()
     ClusterUpdate()
@@ -59,4 +54,4 @@ for i = 1:MCS #Monte Carlo Production Steps
     ClusterUpdate()
 end
 
-println(M2/(nSpin*MCS))
+println(M2/(nSpin*nSpin*MCS))

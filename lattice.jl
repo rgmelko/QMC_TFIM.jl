@@ -7,8 +7,8 @@ using Random
 Random.seed!(1234)
 
 Dim = 1
-nX = 12 
-PBC = true
+nX = 6 
+PBC = false
 
 if Dim == 2
 	nY = nX  #Works for square lattices only right now
