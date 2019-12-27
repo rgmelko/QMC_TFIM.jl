@@ -7,7 +7,7 @@ using Random
 Random.seed!(1234)
 
 Dim = 1
-nX = 4
+nX = 12 
 PBC = true
 
 if Dim == 2
@@ -86,11 +86,3 @@ else
     println("Dimension error")
 end
 
-# println("Dimension ",Dim)
-# println("PBC ",PBC)
-# println("Number of bonds ", nBond)
-# println(bond_spin)
-# 
-# for i = 1:nBond
-#     println(i," ",bond_spin[i,1]," ",bond_spin[i,2])
-# end

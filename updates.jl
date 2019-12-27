@@ -1,11 +1,12 @@
 # updates.jl
 #
-# Defines the functions that build the linked list and operator cluster update
-
-############################ FUNCTIONS ######################################
+# Defines the functions that perform the diagonal update, and also
+# that build the linked list and operator cluster update
 
 lsize = 0
 nullt = (0,0,0) #a null tuple
+
+############################ FUNCTIONS ######################################
 
 #Diagonal update
 function DiagonalUpdate()
