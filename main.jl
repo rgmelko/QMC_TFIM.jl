@@ -8,7 +8,7 @@ include("measurements.jl") #functions for the Monte Carlo updates
 
 #Projector parameters
 M = 300 #length of the projector operator_list is 2M
-h_x = 0.5
+h_x = 1.0
 J_ = 1.0
 MCS = 10000 #the number of Monte Carlo steps
 

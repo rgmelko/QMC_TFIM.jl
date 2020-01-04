@@ -155,17 +155,6 @@ function LinkedList()
     global lsize = size(LinkList)
 
     #DEBUG
-    #println(lsize)
-    #for i = 1:lsize[1]
-    #   println(i," ",LinkList[i])
-    #   #println(Associates[i])
-    #   #if Associates[i] == nullt
-    #   #    println("NULL")
-    #   #end
-    #end
-    #println(LegType," ",size(LegType))
-
-    #DEBUG
     if spin_prop != spin_right
         println("Basis state propagation error: LINKED LIST")
     end
