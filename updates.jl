@@ -9,7 +9,7 @@ nullt = (0, 0, 0) #a null tuple
 ############################ FUNCTIONS ######################################
 
 #Diagonal update
-function DiagonalUpdate()
+function diagonal_update!(operator_list, h_x, J_, nSpin, nBond, spin_left, spin_right)
 
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
@@ -20,40 +20,31 @@ function DiagonalUpdate()
     for i in 1:2*M  #size of the operator list
 
         if operator_list[i, 1] == -2
-            spin_prop[operator_list[i, 2]] = xor(spin_prop[operator_list[i, 2]], 1) #spinflip
-
+            spin_prop[operator_list[i, 2]] ⊻= 1 #spinflip
         else
-            flag = false
-            while flag == false
+            while true
                 rr = rand()
-                if P_h > rr #probability to choose a single-site operator
+                if rr < P_h #probability to choose a single-site operator
                     operator_list[i, 1] = -1
-                    site = rand(1:nSpin)
-                    operator_list[i, 2] = site
-                    flag = true
-                    #println(i," site ",site)
+                    operator_list[i, 2] = rand(1:nSpin)  # site index
+                    break
                 else
                     bond = rand(1:nBond)
-                    if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]] #spins must be the same
-                        operator_list[i, 1] = bond_spin[bond, 1]
-                        operator_list[i, 2] = bond_spin[bond, 2]
-                        flag = true
-                        #println(i," bond ",bond)
-                    end#if
-                    #println(P_h," ",rr," bond")
-                end
+                    # spins at each end of the bond must be the same
+                    if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]]
+                        operator_list[i, :] = bond_spin[bond, :]
+                        break
+                    end
+                end #if rr < P_h
             end #while
-
-        end#if
-    end #for
+        end # if
+    end #for i
 
     #DEBUG
     if spin_prop != spin_right  #check the spin propagation for error
-        println("Basis state propagation error: DiagonalUpdate")
+        error("Basis state propagation error in diagonal update!")
     end
-
-
-end #DiagonalUpdate
+end
 
 #############################################################################
 
@@ -183,37 +174,30 @@ function ClusterUpdate()
 
             flip = rand(Bool) #flip a coin for the SW cluster flip
             if flip == true
-                LegType[cstack[end]] = xor(LegType[cstack[end]], 1) #spinflip
+                LegType[cstack[end]] ⊻= 1 #spinflip
             end
 
             while isempty(cstack) == false
 
                 leg = LinkList[cstack[end]]
                 pop!(cstack)
-                #println("leg ",leg," ",cstack)
 
                 if in_cluster[leg] == 0
 
                     in_cluster[leg] = ccount #add the new leg and flip it
                     if flip == true
-                        #println("gonna flip ",leg)
-                        LegType[leg] = xor(LegType[leg], 1)
+                        LegType[leg] ⊻= 1
                     end
                     #now check all associates and add to cluster
                     assoc = Associates[leg] #a 3-element array
                     if assoc != nullt
-                        push!(cstack, assoc[1])
-                        in_cluster[assoc[1]] = ccount
-                        push!(cstack, assoc[2])
-                        in_cluster[assoc[2]] = ccount
-                        push!(cstack, assoc[3])
-                        in_cluster[assoc[3]] = ccount
+                        push!(cstack, assoc...)
+                        in_cluster[collect(assoc)] .= ccount
                         if flip == true
-                            LegType[assoc[1]] = xor(LegType[assoc[1]], 1)
-                            LegType[assoc[2]] = xor(LegType[assoc[2]], 1)
-                            LegType[assoc[3]] = xor(LegType[assoc[3]], 1)
+                            LegType[collect(assoc)] .⊻= 1
                         end
                     end #if
+
                 end #if in_cluster == 0
             end #while
         end #if
@@ -238,10 +222,8 @@ function ClusterUpdate()
         else
             if LegType[ocount] == LegType[ocount+1]  #diagonal
                 operator_list[i, 1] = -1
-                #println("DCHANGE ",i," ",ocount)
             else
                 operator_list[i, 1] = -2 #off-diagonal
-                #println("OCHANGE ",i," ",ocount)
             end
             ocount += 2
         end
