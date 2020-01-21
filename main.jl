@@ -42,7 +42,7 @@ spin_right = falses(nSpin)
 LinkList = []
 LegType = []
 Associates = []
-operator_list = zeros(Int, 2 * M, 2)
+operator_list::Vector{SSEOperator} = IdOperator.(zeros(2M), lattice)
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
 #  (-1,i) is a diagonal site operator h
 #  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
@@ -50,9 +50,9 @@ operator_list = zeros(Int, 2 * M, 2)
 #*******  Globals
 
 for i in 1:2000  #Equilibration
-    diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_right)
+    diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
-    ClusterUpdate()
+    ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
 end
 
 measurements = falses(MCS, nSpin)
@@ -61,7 +61,7 @@ mags = zeros(MCS)
 energies = zeros(MCS)
 
 @time for i in 1:MCS #Monte Carlo Production Steps
-    diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_right)
+    diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
     spin_prop = sample(spin_left, operator_list)
 
@@ -70,7 +70,7 @@ energies = zeros(MCS)
     energies[i] = energy_abs_zero(h, J_, spin_prop, operator_list)
     mags[i] = magnetization(spin_prop)
 
-    ClusterUpdate()
+    ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
 end
 
 energy = mean(energies)

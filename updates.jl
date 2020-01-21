@@ -19,16 +19,23 @@ abstract type SSEOperator{N, F <: OperatorForm, L <: BoundedLattice} end
 struct SiteOperator{F, L} <: SSEOperator{1, F, L}
     i::Int
 end
+struct IdOperator{L} <: SSEOperator{1, Diagonal, L}
+    i::Int
+end
 struct BondOperator{F, L} <: SSEOperator{2, F, L}
     i::Int
     j::Int
 end
 
-function SiteOperator(i::Int, form::OperatorForm, lat::BoundedLattice)
+function SiteOperator{F<:OperatorForm}(i::Int, lat::L) where L <: BoundedLattice
     @assert 0 < i <= length(lat)
     return SiteOperator{F, L}(i)
 end
-function BondOperator(i::Int, j::Int, form::OperatorForm, lat::BoundedLattice)
+function IdOperator(i::Int, lat::L) where L <: BoundedLattice
+    @assert 0 < i <= length(lat)
+    return IdOperator{L}(i)
+end
+function BondOperator{F<:OperatorForm}(i::Int, j::Int, lat::L) where L <: BoundedLattice
     @assert 0 < i <= length(lat)
     @assert 0 < j <= length(lat)
     return BondOperator{F, L}(i, j)
@@ -40,6 +47,11 @@ operatorform(::T) where {T <: SSEOperator} = operatorform(T)
 isdiagonal(T::Type{<:SSEOperator}) = (operatorform(T) <: Diagonal)
 isdiagonal(::T) where {T <: SSEOperator} = isdiagonal(T)
 
+issiteoperator(T::Type{<:SSEOperator}) = (T <: SiteOperator)
+issiteoperator(::T) where {T <: SSEOperator} = issiteoperator(T)
+
+isbondoperator(T::Type{<:SSEOperator}) = (T <: BondOperator)
+isbondoperator(::T) where {T <: SSEOperator} = isbondoperator(T)
 
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
 #  (-1,i) is a diagonal site operator h
@@ -50,7 +62,7 @@ isdiagonal(::T) where {T <: SSEOperator} = isdiagonal(T)
 
 
 #Diagonal update
-function diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_right)
+function diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
 
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
@@ -58,22 +70,23 @@ function diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_ri
     P_h = h * nSpin / (h * nSpin + 2.0 * J_ * nBond) #J=1.0 tested only
 
     spin_prop = copy(spin_left)  #the propagated spin state
-    for i in 1:2*M  #size of the operator list
+    for n, op in enumerate(operator_list)  #size of the operator list
 
-        if operator_list[i, 1] == -2
-            spin_prop[operator_list[i, 2]] ⊻= 1 #spinflip
+        if op isa SiteOperator{OffDiagonal}
+            spin_prop[op.i] ⊻= 1 #spinflip
         else
             while true
                 rr = rand()
                 if rr < P_h #probability to choose a single-site operator
-                    operator_list[i, 1] = -1
-                    operator_list[i, 2] = rand(1:nSpin)  # site index
+                    # operator_list[i, 1] = -1
+                    # operator_list[i, 2] = rand(1:nSpin)  # site index
+                    operator_list[n] = SiteOperator{Diagonal}(rand(1:nSpin), lattice)
                     break
                 else
                     bond = rand(1:nBond)
                     # spins at each end of the bond must be the same
                     if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]]
-                        operator_list[i, :] = bond_spin[bond, :]
+                        operator_list[n] = BondOperator{Diagonal}(bond_spin[bond, :]..., lattice)
                         break
                     end
                 end #if rr < P_h
@@ -113,10 +126,10 @@ function LinkedList()
     spin_prop = copy(spin_left)  #the propagated spin state
 
     #Now, add the 2M operators to the linked list.  Each has either 2 or 4 legs
-    for i in 1:2*M  #size of the operator list
+    for n, op in enumerate(operator_list)  #size of the operator list
 
-        if operator_list[i, 1] == -2  #off-diagonal site operator
-            site = operator_list[i, 2]
+        if op isa SiteOperator{OffDiagonal}  #off-diagonal site operator
+            site = op.i
             #lower or left leg
             push!(LinkList, First[site])
             push!(LegType, spin_prop[site]) #the spin of the vertex leg
@@ -130,8 +143,8 @@ function LinkedList()
             push!(LegType, spin_prop[site]) #the spin of the vertex leg
             push!(Associates, nullt)
 
-        elseif operator_list[i, 1] == -1  #diagonal site operator
-            site = operator_list[i, 2]
+        elseif op is SiteOperator{Diagonal}  #diagonal site operator
+            site = op.i
             #lower or left leg
             push!(LinkList, First[site])
             push!(LegType, spin_prop[site]) #the spin of the vertex leg
@@ -146,7 +159,7 @@ function LinkedList()
 
         else  #diagonal bond operator
             #lower left
-            site1 = operator_list[i, 1]
+            site1 = op.i
             push!(LinkList, First[site1])
             push!(LegType, spin_prop[site1]) #the spin of the vertex leg
             current_link = size(LinkList)
@@ -155,7 +168,7 @@ function LinkedList()
             vertex1 = current_link[1]
             push!(Associates, (vertex1 + 1, vertex1 + 2, vertex1 + 3))
             #lower right
-            site2 = operator_list[i, 2]
+            site2 = op.j
             push!(LinkList, First[site2])
             push!(LegType, spin_prop[site2]) #the spin of the vertex leg
             current_link = size(LinkList)
@@ -184,8 +197,6 @@ function LinkedList()
         push!(Associates, nullt)
     end #i
 
-    global lsize = size(LinkList)
-
     #DEBUG
     if spin_prop != spin_right
         println("Basis state propagation error: LINKED LIST")
@@ -196,7 +207,9 @@ end #LinkedList
 #############################################################################
 
 #ClusterUpdate
-function ClusterUpdate()
+function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
+
+    lsize = size(LinkList)
 
     #lsize is the size of the linked list
     in_cluster = zeros(Int, lsize[1])
@@ -257,14 +270,14 @@ function ClusterUpdate()
     end
 
     ocount += 1  #next on is leg nSpin + 1
-    for i in 1:2*M
-        if operator_list[i, 1] != -2 && operator_list[i, 1] != -1
+    for n, op in enumerate(operator_list)
+        if isbondoperator(op)
             ocount += 4
         else
             if LegType[ocount] == LegType[ocount+1]  #diagonal
-                operator_list[i, 1] = -1
+                operator_list[n] = SiteOperator{Diagonal}(op.i, lattice)
             else
-                operator_list[i, 1] = -2 #off-diagonal
+                operator_list[n] = SiteOperator{OffDiagonal}(op.i, lattice) #off-diagonal
             end
             ocount += 2
         end
