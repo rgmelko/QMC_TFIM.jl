@@ -3,6 +3,7 @@
 # A projector QMC program for the TFIM
 
 using Random
+using ProgressMeter
 Random.seed!(1234)
 
 using DelimitedFiles
@@ -13,7 +14,7 @@ include("measurements.jl") #functions for the Monte Carlo updates
 
 
 Dim = 1
-nX = 10
+nX = 4
 PBC = false
 
 BC = PBC ? Periodic : Fixed
@@ -59,7 +60,7 @@ operator_list = make_op_list(M)
 #  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j + 1)
 #*******  Globals
 
-for i in 1:2000  #Equilibration
+@showprogress "warming up..." for i in 1:2000  #Equilibration
     diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
     ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
@@ -70,7 +71,7 @@ measurements = falses(MCS, nSpin)
 mags = zeros(MCS)
 energies = zeros(MCS)
 
-@time for i in 1:MCS #Monte Carlo Production Steps
+@showprogress "MCMC..." for i in 1:MCS #Monte Carlo Production Steps
     diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
     spin_prop = sample(spin_left, operator_list)
@@ -91,6 +92,6 @@ energy -= J_*nBond/nSpin
 #     writedlm(io, measurements, " ")
 # end
 
-println(mean(mags))
-println(mean(x->x^2, mags))
-println(energy)
+@info "mean M is:\t",  mean(mags)
+@info "mean M²:\t",    mean(x->x^2, mags)
+@info "Energy is:\t", energy
