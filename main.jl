@@ -27,7 +27,7 @@ nSpin = prod(size(lattice))
 nBond = size(bond_spin, 1)
 
 #Projector parameters
-M = 300 #length of the projector operator_list is 2M
+M = 500 #length of the projector operator_list is 2M
 h = 1.0
 J_ = 1.0
 MCS = 10000 #the number of Monte Carlo steps
@@ -57,27 +57,30 @@ end
 
 measurements = falses(MCS, nSpin)
 
-mag, mag2 = 0., 0.
-energy = 0.0
-for i in 1:MCS #Monte Carlo Production Steps
+mags = zeros(MCS)
+energies = zeros(MCS)
+
+@time for i in 1:MCS #Monte Carlo Production Steps
     diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
     spin_prop = sample(spin_left, operator_list)
 
     measurements[i, :] = spin_prop
 
-    global energy += energy_abs_zero(h, J_, spin_prop, operator_list)
-    global mag += magnetization(spin_prop)
-    global mag2 += magnetization_sqr(spin_prop)
+    energies[i] = energy_abs_zero(h, J_, spin_prop, operator_list)
+    mags[i] = magnetization(spin_prop)
+
     ClusterUpdate()
 end
 
+energy = mean(energies)
+energy -= J_*nBond/nSpin
 
-open(output_file, "a") do io
-    writedlm(io, measurements, " ")
-end
 
-println(mag / (nSpin * MCS))
-println(mag2 / (nSpin * nSpin * MCS))
+# open(output_file, "a") do io
+#     writedlm(io, measurements, " ")
+# end
 
-println(energy / (nSpin * MCS))
+println(mean(mags))
+println(mean(x->x^2, mags))
+println(energy)

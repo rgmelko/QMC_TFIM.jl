@@ -8,13 +8,54 @@ nullt = (0, 0, 0) #a null tuple
 
 ############################ FUNCTIONS ######################################
 
+
+
+abstract type OperatorForm end
+struct Diagonal <: OperatorForm end
+struct OffDiagonal <: OperatorForm end
+
+abstract type SSEOperator{N, F <: OperatorForm, L <: BoundedLattice} end
+
+struct SiteOperator{F, L} <: SSEOperator{1, F, L}
+    i::Int
+end
+struct BondOperator{F, L} <: SSEOperator{2, F, L}
+    i::Int
+    j::Int
+end
+
+function SiteOperator(i::Int, form::OperatorForm, lat::BoundedLattice)
+    @assert 0 < i <= length(lat)
+    return SiteOperator{F, L}(i)
+end
+function BondOperator(i::Int, j::Int, form::OperatorForm, lat::BoundedLattice)
+    @assert 0 < i <= length(lat)
+    @assert 0 < j <= length(lat)
+    return BondOperator{F, L}(i, j)
+end
+
+operatorform(::Type{<:SSEOperator{N, F}}) where {N, F} = F
+operatorform(::T) where {T <: SSEOperator} = operatorform(T)
+
+isdiagonal(T::Type{<:SSEOperator}) = (operatorform(T) <: Diagonal)
+isdiagonal(::T) where {T <: SSEOperator} = isdiagonal(T)
+
+
+#  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
+#  (-1,i) is a diagonal site operator h
+#  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
+#  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j + 1)
+
+
+
+
 #Diagonal update
-function diagonal_update!(operator_list, h_x, J_, nSpin, nBond, spin_left, spin_right)
+function diagonal_update!(operator_list, h, J_, nSpin, nBond, spin_left, spin_right)
 
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     #equation 1.43
-    P_h = h_x * nSpin / (h_x * nSpin + 2.0 * J_ * nBond) #J=1.0 tested only
+    P_h = h * nSpin / (h * nSpin + 2.0 * J_ * nBond) #J=1.0 tested only
 
     spin_prop = copy(spin_left)  #the propagated spin state
     for i in 1:2*M  #size of the operator list
