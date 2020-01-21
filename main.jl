@@ -16,11 +16,15 @@ Dim = 1
 nX = 10
 PBC = false
 
-lattice_shape = tuple(repeat([nX], Dim)...)
 BC = PBC ? Periodic : Fixed
 BC_name = PBC ? "PBC" : "OBC"
 
-lattice = HyperRect(lattice_shape; boundary = BC)
+# lattice = HyperRect(lattice_shape; boundary = BC)
+if Dim == 1
+    lattice = Chain(nX; boundary = BC)
+else
+    lattice = Square(nX, nX; boundary = BC)
+end
 bond_spin = lattice_bond_spins(lattice)
 
 nSpin = prod(size(lattice))
@@ -42,7 +46,13 @@ spin_right = falses(nSpin)
 LinkList = []
 LegType = []
 Associates = []
-operator_list::Vector{SSEOperator} = IdOperator.(zeros(2M), lattice)
+
+function make_op_list(M)
+    operator_list::Vector{SSEOperator} = [IdOperator(1, lattice) for _ in 1:2M]
+    return operator_list
+end
+
+operator_list = make_op_list(M)
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
 #  (-1,i) is a diagonal site operator h
 #  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE

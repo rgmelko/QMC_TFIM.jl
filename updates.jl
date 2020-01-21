@@ -27,15 +27,16 @@ struct BondOperator{F, L} <: SSEOperator{2, F, L}
     j::Int
 end
 
-function SiteOperator{F<:OperatorForm}(i::Int, lat::L) where L <: BoundedLattice
+function SiteOperator{F}(i::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
     @assert 0 < i <= length(lat)
     return SiteOperator{F, L}(i)
 end
+
 function IdOperator(i::Int, lat::L) where L <: BoundedLattice
     @assert 0 < i <= length(lat)
     return IdOperator{L}(i)
 end
-function BondOperator{F<:OperatorForm}(i::Int, j::Int, lat::L) where L <: BoundedLattice
+function BondOperator{F}(i::Int, j::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
     @assert 0 < i <= length(lat)
     @assert 0 < j <= length(lat)
     return BondOperator{F, L}(i, j)
@@ -70,16 +71,14 @@ function diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left
     P_h = h * nSpin / (h * nSpin + 2.0 * J_ * nBond) #J=1.0 tested only
 
     spin_prop = copy(spin_left)  #the propagated spin state
-    for n, op in enumerate(operator_list)  #size of the operator list
+    for (n, op) in enumerate(operator_list)  #size of the operator list
 
-        if op isa SiteOperator{OffDiagonal}
+        if issiteoperator(op) && !isdiagonal(op)
             spin_prop[op.i] ⊻= 1 #spinflip
         else
             while true
                 rr = rand()
                 if rr < P_h #probability to choose a single-site operator
-                    # operator_list[i, 1] = -1
-                    # operator_list[i, 2] = rand(1:nSpin)  # site index
                     operator_list[n] = SiteOperator{Diagonal}(rand(1:nSpin), lattice)
                     break
                 else
@@ -126,32 +125,23 @@ function LinkedList()
     spin_prop = copy(spin_left)  #the propagated spin state
 
     #Now, add the 2M operators to the linked list.  Each has either 2 or 4 legs
-    for n, op in enumerate(operator_list)  #size of the operator list
+    for (n, op) in enumerate(operator_list)  #size of the operator list
 
-        if op isa SiteOperator{OffDiagonal}  #off-diagonal site operator
+        if issiteoperator(op)
             site = op.i
             #lower or left leg
             push!(LinkList, First[site])
             push!(LegType, spin_prop[site]) #the spin of the vertex leg
-            spin_prop[site] = xor(spin_prop[site], 1) #spinflip
-            current_link = size(LinkList)
-            LinkList[First[site]] = current_link[1] #completes backwards link
-            First[site] = current_link[1] + 1
-            push!(Associates, nullt)
-            #upper or right leg
-            push!(LinkList, -99) #we don't yet know what this links to
-            push!(LegType, spin_prop[site]) #the spin of the vertex leg
+            current_link = length(LinkList)
+
+            if !isdiagonal(op)  #off-diagonal site operator
+                spin_prop[site] ⊻= 1 #spinflip
+            end
+
+            LinkList[First[site]] = current_link #completes backwards link
+            First[site] = current_link + 1
             push!(Associates, nullt)
 
-        elseif op is SiteOperator{Diagonal}  #diagonal site operator
-            site = op.i
-            #lower or left leg
-            push!(LinkList, First[site])
-            push!(LegType, spin_prop[site]) #the spin of the vertex leg
-            current_link = size(LinkList)
-            LinkList[First[site]] = current_link[1] #completes backwards link
-            First[site] = current_link[1] + 1
-            push!(Associates, nullt)
             #upper or right leg
             push!(LinkList, -99) #we don't yet know what this links to
             push!(LegType, spin_prop[site]) #the spin of the vertex leg
@@ -162,18 +152,18 @@ function LinkedList()
             site1 = op.i
             push!(LinkList, First[site1])
             push!(LegType, spin_prop[site1]) #the spin of the vertex leg
-            current_link = size(LinkList)
-            LinkList[First[site1]] = current_link[1] #completes backwards link
-            First[site1] = current_link[1] + 2
-            vertex1 = current_link[1]
+            current_link = length(LinkList)
+            LinkList[First[site1]] = current_link #completes backwards link
+            First[site1] = current_link + 2
+            vertex1 = current_link
             push!(Associates, (vertex1 + 1, vertex1 + 2, vertex1 + 3))
             #lower right
             site2 = op.j
             push!(LinkList, First[site2])
             push!(LegType, spin_prop[site2]) #the spin of the vertex leg
-            current_link = size(LinkList)
-            LinkList[First[site2]] = current_link[1] #completes backwards link
-            First[site2] = current_link[1] + 2
+            current_link = length(LinkList)
+            LinkList[First[site2]] = current_link #completes backwards link
+            First[site2] = current_link + 2
             push!(Associates, (vertex1, vertex1 + 2, vertex1 + 3))
             #upper left
             push!(LinkList, -99) #we don't yet know what this links to
@@ -192,8 +182,8 @@ function LinkedList()
     for i in 1:nSpin
         push!(LinkList, First[i])
         push!(LegType, spin_prop[i])
-        current_link = size(LinkList)
-        LinkList[First[i]] = current_link[1]
+        current_link = length(LinkList)
+        LinkList[First[i]] = current_link
         push!(Associates, nullt)
     end #i
 
@@ -209,15 +199,15 @@ end #LinkedList
 #ClusterUpdate
 function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
 
-    lsize = size(LinkList)
+    lsize = length(LinkList)
 
     #lsize is the size of the linked list
-    in_cluster = zeros(Int, lsize[1])
+    in_cluster = zeros(Int, lsize)
 
     cstack = zeros(Int, 0)  #This is the stack of vertices in a cluster
 
     ccount = 0 #cluster number counter
-    for i in 1:lsize[1]
+    for i in 1:lsize
 
         #Add a new leg onto the cluster
         if (in_cluster[i] == 0 && Associates[i] == nullt)
@@ -227,11 +217,11 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
             in_cluster[cstack[end]] = ccount
 
             flip = rand(Bool) #flip a coin for the SW cluster flip
-            if flip == true
+            if flip
                 LegType[cstack[end]] ⊻= 1 #spinflip
             end
 
-            while isempty(cstack) == false
+            while !isempty(cstack)
 
                 leg = LinkList[cstack[end]]
                 pop!(cstack)
@@ -239,16 +229,17 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
                 if in_cluster[leg] == 0
 
                     in_cluster[leg] = ccount #add the new leg and flip it
-                    if flip == true
+                    if flip
                         LegType[leg] ⊻= 1
                     end
                     #now check all associates and add to cluster
                     assoc = Associates[leg] #a 3-element array
                     if assoc != nullt
                         push!(cstack, assoc...)
-                        in_cluster[collect(assoc)] .= ccount
-                        if flip == true
-                            LegType[collect(assoc)] .⊻= 1
+                        assoc_l = collect(assoc)
+                        in_cluster[assoc_l] .= ccount
+                        if flip
+                            LegType[assoc_l] .⊻= 1
                         end
                     end #if
 
@@ -263,14 +254,12 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
     #end
 
     #map back basis states and operator list
-    ocount = 0
     for i in 1:nSpin
         spin_left[i] = LegType[i]  #left basis state
-        ocount += 1
     end
 
-    ocount += 1  #next on is leg nSpin + 1
-    for n, op in enumerate(operator_list)
+    ocount = nSpin + 1  #next on is leg nSpin + 1
+    for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
         else
@@ -284,8 +273,7 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
     end
 
     for i in 1:nSpin
-        spin_right[i] = LegType[lsize[1]-nSpin+i]  #left basis state
+        spin_right[i] = LegType[lsize-nSpin+i]  #left basis state
     end
-
 
 end #ClusterUpdate

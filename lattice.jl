@@ -6,18 +6,18 @@
 using Lattices
 
 
-function lattice_bond_spins(::HyperRect{1,Periodic,Tuple{L}}) where {L}
-    bond_spin = lattice_bond_spins(HyperRect(L, boundary = Fixed))
+function lattice_bond_spins(::Chain{L, Periodic}) where {L}
+    bond_spin = lattice_bond_spins(Chain(L; boundary = Fixed))
     return vcat(bond_spin, [L 1])
 end
 
-function lattice_bond_spins(::HyperRect{1,Fixed,Tuple{L}}) where {L}
+function lattice_bond_spins(::Chain{L, Fixed}) where {L}
     return [i + j for i in 1:(L-1), j in 0:1]
 end
 
 
 # 2D square lattice with fixed/open BCs
-function lattice_bond_spins(::HyperRect{2,Fixed,Tuple{L,L}} where {L})
+function lattice_bond_spins(::Square{Tuple{L,L},Fixed} where {L})
     nSpin = L * L
     nBonds = 2 * nSpin - L - L
     bond_spin = zeros(Int, nBonds, 2)
@@ -49,7 +49,7 @@ end
 
 
 # 2D square lattice with periodic BCs
-function lattice_bond_spins(::HyperRect{2,Periodic,Tuple{L,L}} where {L})
+function lattice_bond_spins(::Square{Tuple{L,L},Periodic} where {L})
     nSpin = L * L
     nBonds = 2 * nSpin
     bond_spin = zeros(Int, nBonds, 2)  # assign site indices to bonds
