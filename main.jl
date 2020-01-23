@@ -13,7 +13,7 @@ include("measurements.jl") #functions for the Monte Carlo updates
 
 
 Dim = 1
-nX = 10
+nX = 6
 PBC = false
 
 BC = PBC ? Periodic : Fixed
@@ -69,6 +69,7 @@ measurements = falses(MCS, nSpin)
 
 mags = zeros(MCS)
 energies = zeros(MCS)
+num_ssd = zeros(MCS)
 
 @time for i in 1:MCS #Monte Carlo Production Steps
     diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
@@ -78,13 +79,20 @@ energies = zeros(MCS)
     measurements[i, :] = spin_prop
 
     energies[i] = energy_abs_zero(h, J_, spin_prop, operator_list)
+    num_ssd[i] = num_single_site_diag(operator_list)
     mags[i] = magnetization(spin_prop)
 
     ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
 end
 
-energy = mean(energies)
-energy -= J_*nBond/nSpin
+# energy = mean(energies)
+# energy += (h*nSpin + J_*nBond) / nSpin
+# energy *= 2
+
+n = mean(1 ./ num_ssd)
+
+energy = (2*h/n - h - J_*nBond/nSpin)
+
 
 
 # open(output_file, "a") do io
@@ -94,3 +102,4 @@ energy -= J_*nBond/nSpin
 println(mean(mags))
 println(mean(x->x^2, mags))
 println(energy)
+println(mean(energies))
