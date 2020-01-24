@@ -9,7 +9,6 @@ nullt = (0, 0, 0) #a null tuple
 ############################ FUNCTIONS ######################################
 
 
-
 abstract type OperatorForm end
 struct Diagonal <: OperatorForm end
 struct OffDiagonal <: OperatorForm end
@@ -189,7 +188,7 @@ function LinkedList()
 
     #DEBUG
     if spin_prop != spin_right
-        println("Basis state propagation error: LINKED LIST")
+        @debug "Basis state propagation error: LINKED LIST"
     end
 
 end #LinkedList
@@ -203,15 +202,11 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
 
     #lsize is the size of the linked list
     in_cluster = zeros(Int, lsize)
-
     cstack = zeros(Int, 0)  #This is the stack of vertices in a cluster
-
     ccount = 0 #cluster number counter
     for i in 1:lsize
-
         #Add a new leg onto the cluster
         if (in_cluster[i] == 0 && Associates[i] == nullt)
-
             ccount += 1
             push!(cstack, i)
             in_cluster[cstack[end]] = ccount
@@ -220,14 +215,12 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
             if flip
                 LegType[cstack[end]] ⊻= 1 #spinflip
             end
-
             while !isempty(cstack)
 
                 leg = LinkList[cstack[end]]
                 pop!(cstack)
 
                 if in_cluster[leg] == 0
-
                     in_cluster[leg] = ccount #add the new leg and flip it
                     if flip
                         LegType[leg] ⊻= 1
@@ -242,7 +235,6 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
                             LegType[assoc_l] .⊻= 1
                         end
                     end #if
-
                 end #if in_cluster == 0
             end #while
         end #if
