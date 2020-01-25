@@ -14,8 +14,8 @@ include("measurements.jl") # functions for the Monte Carlo updates
 
 
 Dim = 1
-nX = 4
-PBC = false
+nX = 6
+PBC = true
 
 BC = PBC ? Periodic : Fixed
 BC_name = PBC ? "PBC" : "OBC"
@@ -33,8 +33,8 @@ nBond = size(bond_spin, 1)
 
 # Projector parameters
 M = 400 # length of the projector operator_list is 2M
-h = 2.0
-J_ = 1.0
+h = 1.5
+J_ = 2.0
 MCS = 8000 # the number of Monte Carlo steps
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/h$(h)/"
@@ -69,39 +69,25 @@ end
 measurements = falses(MCS, nSpin)
 
 mags = zeros(MCS)
-energies = zeros(MCS)
-E1 = zeros(MCS)
-E2 = zeros(MCS)
-inv = zeros(MCS)
 ns = zeros(MCS)
 
 @showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
-    # for j in 1:5
     diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
     LinkedList()
-    spin_prop = sample(spin_left, operator_list)
     ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
 
+    spin_prop = sample(spin_left, operator_list)
     measurements[i, :] = spin_prop
 
-    E1[i], E2[i], inv[i], ns[i] = energy_abs_zero(h, J_, spin_prop, operator_list)
+    ns[i] = num_single_site_diag(operator_list)
     mags[i] = magnetization(spin_prop)
-
-    # end
-
 end
 
-Jenergy = mean(E1)
-henergy = mean(E2)  # - J_ * nBond / nSpin
-n1 = mean(inv)
+n_inv = 1. / mean(ns)
 
 @info "mean M is:\t" mean(mags)
 @info "mean M²:\t"  mean(x->x^2, mags)
-@info "Energy is:\t" Jenergy
-@info "Energy is:\t" henergy
-@info "1/n is:\t" n1
-
-@info "Energy is:\t" henergy + Jenergy - h - J_ * nBond / nSpin
+@info "Energy is:\t" h*(n_inv - 1) - J_*nBond/nSpin
 
 
 @info J_ * nBond / nSpin
