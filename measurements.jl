@@ -34,7 +34,33 @@ function energy_abs_zero(h, J, spin_prop, operator_list)
 end
 
 
+function interaction(J, spin_prop, BC::Type{Periodic})
+    nSpin = length(spin_prop)
+    spins = (2 * spin_prop) .- 1
+    return -J*sum(spins .* spins[(2:nSpin+1) .% nSpin])
+end
+
+function interaction(J, spin_prop, BC::Type{Fixed})
+    nSpin = length(spin_prop)
+    spins = (2 * spin_prop) .- 1
+    return -J*sum(spins[1:nSpin-1] .* spins[2:nSpin])
+end
+
+function interaction_ops(J, operator_list)
+    return -J*mean(isbondoperator, operator_list)*nSpin
+end
+
 
 function num_single_site_diag(operator_list)
     return mean(x -> issiteoperator(x) && isdiagonal(x), operator_list)
+end
+
+
+function num_single_site_offdiag(operator_list)
+    return mean(x -> issiteoperator(x) && !isdiagonal(x), operator_list)
+end
+
+
+function num_single_site(operator_list)
+    return mean(issiteoperator, operator_list)
 end
