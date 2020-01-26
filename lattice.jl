@@ -3,8 +3,6 @@
 # Defines the spatial lattice; supports 1D and 2D square, open and periodic boundaries
 # The main data structure is the bond-spin index array, bond_spin[nBond,2]
 
-using Lattices
-
 
 function lattice_bond_spins(::Chain{L, Periodic}) where {L}
     bond_spin = lattice_bond_spins(Chain(L; boundary = Fixed))

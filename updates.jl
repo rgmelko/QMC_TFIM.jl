@@ -3,71 +3,30 @@
 # Defines the functions that perform the diagonal update, and also
 # that build the linked list and operator cluster update
 
-lsize = 0
 nullt = (0, 0, 0) #a null tuple
 
 ############################ FUNCTIONS ######################################
+include("operators.jl")
+include("qmc.jl")
 
 
-abstract type OperatorForm end
-struct Diagonal <: OperatorForm end
-struct OffDiagonal <: OperatorForm end
-
-abstract type SSEOperator{N, F <: OperatorForm, L <: BoundedLattice} end
-
-struct SiteOperator{F, L} <: SSEOperator{1, F, L}
-    i::Int
+struct ClusterData
+    linked_list::Vector{Int}
+    leg_types::Vector{Int}
+    associates::Vector{NTuple{3, Int}}
 end
-struct IdOperator{L} <: SSEOperator{1, Diagonal, L}
-    i::Int
-end
-struct BondOperator{F, L} <: SSEOperator{2, F, L}
-    i::Int
-    j::Int
-end
-
-function SiteOperator{F}(i::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
-    @assert 0 < i <= length(lat)
-    return SiteOperator{F, L}(i)
-end
-
-function IdOperator(i::Int, lat::L) where L <: BoundedLattice
-    @assert 0 < i <= length(lat)
-    return IdOperator{L}(i)
-end
-function BondOperator{F}(i::Int, j::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
-    @assert 0 < i <= length(lat)
-    @assert 0 < j <= length(lat)
-    return BondOperator{F, L}(i, j)
-end
-
-operatorform(::Type{<:SSEOperator{N, F}}) where {N, F} = F
-operatorform(::T) where {T <: SSEOperator} = operatorform(T)
-
-isdiagonal(T::Type{<:SSEOperator}) = (operatorform(T) <: Diagonal)
-isdiagonal(::T) where {T <: SSEOperator} = isdiagonal(T)
-
-issiteoperator(T::Type{<:SSEOperator}) = (T <: SiteOperator)
-issiteoperator(::T) where {T <: SSEOperator} = issiteoperator(T)
-
-isbondoperator(T::Type{<:SSEOperator}) = (T <: BondOperator)
-isbondoperator(::T) where {T <: SSEOperator} = isbondoperator(T)
-
-#  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
-#  (-1,i) is a diagonal site operator h
-#  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
-#  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j + 1)
-
-
 
 
 #Diagonal update
-function diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left, spin_right)
+function diagonal_update!(operator_list, h, J_, qmc_state::QMCState)
+    lattice, bond_spin = qmc_state.lattice, qmc_state.bond_spin
+    nspins, nbonds = qmc_state.nspins, qmc_state.nbonds
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
 
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     #equation 1.43
-    P_h = h * nSpin / (h * nSpin + 2.0 * J_ * nBond) #J=1.0 tested only
+    P_h = h * nspins / (h * nspins + 2.0 * J_ * nbonds) #J=1.0 tested only
 
     spin_prop = copy(spin_left)  #the propagated spin state
     for (n, op) in enumerate(operator_list)  #size of the operator list
@@ -78,10 +37,10 @@ function diagonal_update!(operator_list, lattice, h, J_, nSpin, nBond, spin_left
             while true
                 rr = rand()
                 if rr < P_h #probability to choose a single-site operator
-                    operator_list[n] = SiteOperator{Diagonal}(rand(1:nSpin), lattice)
+                    operator_list[n] = SiteOperator{Diagonal}(rand(1:nspins), lattice)
                     break
                 else
-                    bond = rand(1:nBond)
+                    bond = rand(1:nbonds)
                     # spins at each end of the bond must be the same
                     if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]]
                         operator_list[n] = BondOperator{Diagonal}(bond_spin[bond, :]..., lattice)
@@ -101,25 +60,35 @@ end
 #############################################################################
 
 #LinkedList
-function LinkedList()
+function linked_list_update(operator_list, qmc_state::QMCState)
+    nspins = qmc_state.nspins
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+
+    len = 2*nspins
+    for op in operator_list
+        if issiteoperator(op)
+            len += 2
+        elseif isbondoperator(op)
+            len += 4
+        end
+    end
 
     #initialize linked list data structures
-    global LinkList = zeros(Int, 0)  #needed for cluster update
-    global LegType = zeros(Int, 0)
+    LinkList = zeros(Int, len)  #needed for cluster update
+    LegType = zeros(Int, len)
 
     #A diagonal bond operator has non trivial associates for cluster building
     #Associates = zeros((Int,Int,Int),0)
-    global Associates = []
+    Associates = collect(repeat([nullt], len))
 
-    First = zeros(Int, 0)  #scope is this function only
+    First = collect(1:nspins)
+    idx = 0
 
     #The first N elements of the linked list are the spins of the LHS basis state
-    for i in 1:nSpin
-        push!(First, i)
-        push!(LinkList, -99) #we don't yet know what these link to
-        push!(LegType, spin_left[i])
-        push!(Associates, nullt) #no nontrivial associates for train wf spins
-    end #i
+    for i in 1:nspins
+        idx += 1
+        LegType[idx] = spin_left[i]
+    end
 
     spin_prop = copy(spin_left)  #the propagated spin state
 
@@ -129,78 +98,86 @@ function LinkedList()
         if issiteoperator(op)
             site = op.i
             #lower or left leg
-            push!(LinkList, First[site])
-            push!(LegType, spin_prop[site]) #the spin of the vertex leg
-            current_link = length(LinkList)
+            idx += 1
+            LinkList[idx] = First[op.i]
+            LegType[idx] = spin_prop[op.i]
+            current_link = idx
 
             if !isdiagonal(op)  #off-diagonal site operator
-                spin_prop[site] ⊻= 1 #spinflip
+                spin_prop[op.i] ⊻= 1 #spinflip
             end
 
-            LinkList[First[site]] = current_link #completes backwards link
-            First[site] = current_link + 1
-            push!(Associates, nullt)
+            LinkList[First[op.i]] = current_link #completes backwards link
+            First[op.i] = current_link + 1
 
             #upper or right leg
-            push!(LinkList, -99) #we don't yet know what this links to
-            push!(LegType, spin_prop[site]) #the spin of the vertex leg
-            push!(Associates, nullt)
-
+            idx += 1
+            LegType[idx] = spin_prop[op.i]
         else  #diagonal bond operator
             #lower left
-            site1 = op.i
-            push!(LinkList, First[site1])
-            push!(LegType, spin_prop[site1]) #the spin of the vertex leg
-            current_link = length(LinkList)
-            LinkList[First[site1]] = current_link #completes backwards link
-            First[site1] = current_link + 2
+            idx += 1
+            LinkList[idx] = First[op.i]
+            LegType[idx] = spin_prop[op.i]
+            current_link = idx
+
+            LinkList[First[op.i]] = current_link #completes backwards link
+            First[op.i] = current_link + 2
             vertex1 = current_link
-            push!(Associates, (vertex1 + 1, vertex1 + 2, vertex1 + 3))
+            Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
+
             #lower right
-            site2 = op.j
-            push!(LinkList, First[site2])
-            push!(LegType, spin_prop[site2]) #the spin of the vertex leg
-            current_link = length(LinkList)
-            LinkList[First[site2]] = current_link #completes backwards link
-            First[site2] = current_link + 2
-            push!(Associates, (vertex1, vertex1 + 2, vertex1 + 3))
+            idx += 1
+            LinkList[idx] = First[op.j]
+            LegType[idx] = spin_prop[op.j]
+            current_link = idx
+
+            LinkList[First[op.j]] = current_link #completes backwards link
+            First[op.j] = current_link + 2
+            Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
+
             #upper left
-            push!(LinkList, -99) #we don't yet know what this links to
-            push!(LegType, spin_prop[site1]) #the spin of the vertex leg
-            push!(Associates, (vertex1, vertex1 + 1, vertex1 + 3))
+            idx += 1
+            LegType[idx] = spin_prop[op.i]
+            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
+
             #upper right
-            push!(LinkList, -99) #we don't yet know what this links to
-            push!(LegType, spin_prop[site2]) #the spin of the vertex leg
-            push!(Associates, (vertex1, vertex1 + 1, vertex1 + 2))
-
+            idx += 1
+            LegType[idx] = spin_prop[op.j]
+            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
         end #if
-
     end #i
 
     #The last N elements of the linked list are the final spin state
-    for i in 1:nSpin
-        push!(LinkList, First[i])
-        push!(LegType, spin_prop[i])
-        current_link = length(LinkList)
-        LinkList[First[i]] = current_link
-        push!(Associates, nullt)
-    end #i
+    for i in 1:nspins
+        idx += 1
+        LinkList[idx] = First[i]
+        LegType[idx] = spin_prop[i]
+        LinkList[First[i]] = idx
+    end
 
     #DEBUG
     if spin_prop != spin_right
         @debug "Basis state propagation error: LINKED LIST"
     end
 
+    return ClusterData(LinkList, LegType, Associates)
+
 end #LinkedList
 
 #############################################################################
 
 #ClusterUpdate
-function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Associates, LinkList, LegType)
+function cluster_update!(operator_list, qmc_state::QMCState, cluster_data::ClusterData)
+    lattice = qmc_state.lattice
+    nspins, nbonds = qmc_state.nspins, qmc_state.nbonds
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+
+    LinkList = cluster_data.linked_list
+    LegType = cluster_data.leg_types
+    Associates = cluster_data.associates
 
     lsize = length(LinkList)
 
-    #lsize is the size of the linked list
     in_cluster = zeros(Int, lsize)
     cstack = zeros(Int, 0)  #This is the stack of vertices in a cluster
     ccount = 0 #cluster number counter
@@ -240,17 +217,13 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
         end #if
     end #for i
 
-    #DEBUG
-    #for i = 1:lsize[1]
-    #    println(i," ",LegType[i]," ",in_cluster[i])
-    #end
-
     #map back basis states and operator list
-    for i in 1:nSpin
+    for i in 1:nspins
         spin_left[i] = LegType[i]  #left basis state
+        spin_right[i] = LegType[lsize-nspins+i]  #right basis state
     end
 
-    ocount = nSpin + 1  #next on is leg nSpin + 1
+    ocount = nspins + 1  #next on is leg nSpin + 1
     for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
@@ -262,10 +235,6 @@ function ClusterUpdate(operator_list, lattice, nSpin, spin_left, spin_right, Ass
             end
             ocount += 2
         end
-    end
-
-    for i in 1:nSpin
-        spin_right[i] = LegType[lsize-nSpin+i]  #left basis state
     end
 
 end #ClusterUpdate
