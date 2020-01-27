@@ -17,11 +17,17 @@ struct ClusterData
 end
 
 
-@inline function mc_step!(qmc_state::BinaryQMCState, H::TFIM)
+function mc_step!(f::Function, qmc_state::BinaryQMCState, H::TFIM)
     diagonal_update!(qmc_state, H)
     cluster_data = linked_list_update(qmc_state, H)
+
+    f(cluster_data, qmc_state, H)
+
     cluster_update!(cluster_data, qmc_state, H)
 end
+
+mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
+
 
 #Diagonal update
 function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)

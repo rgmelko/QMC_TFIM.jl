@@ -26,10 +26,10 @@ else
 end
 
 # Projector parameters
-M = 500 # length of the projector operator_list is 2M
-h = 1.0
-J_ = 1.0
-MCS = 50000 # the number of Monte Carlo steps
+M = 700 # length of the projector operator_list is 2M
+h = 1.5
+J_ = 2.0
+MCS = 100000 # the number of Monte Carlo steps
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/h$(h)/"
 mkpath(root)
@@ -41,7 +41,7 @@ include("updates.jl") # functions for the Monte Carlo updates
 H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
 
-@showprogress "warming up..." for i in 1:div(MCS, 5)  # Equilibration
+@showprogress "warming up..." for i in 1:div(MCS, 10)  # Equilibration
     mc_step!(qmc_state, H)
 end
 
@@ -51,13 +51,13 @@ mags = zeros(MCS)
 ns = zeros(MCS)
 
 @showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
-    mc_step!(qmc_state, H)
+    mc_step!(qmc_state, H) do cluster_data, qmc_state, H
+        spin_prop = sample(qmc_state.left_config, qmc_state.operator_list)
+        measurements[i, :] = spin_prop
 
-    spin_prop = sample(qmc_state.left_config, qmc_state.operator_list)
-    measurements[i, :] = spin_prop
-
-    ns[i] = num_single_site_diag(qmc_state.operator_list)
-    mags[i] = magnetization(spin_prop)
+        ns[i] = num_single_site_diag(qmc_state.operator_list)
+        mags[i] = magnetization(spin_prop)
+    end
 end
 
 open(output_file, "w") do io
@@ -69,4 +69,4 @@ n_inv = 1. / mean(ns)
 @info "mean M is:\t" mean(mags)
 @info "mean |M| is:\t" mean(abs, mags)
 @info "mean M²:\t"  mean(x->x^2, mags)
-@info "Energy is:\t" h*(n_inv - 1) - J_*nbonds(H)/nspins(H)
+@info "Energy is:\t" J_*nbonds(H)/nspins(H) - h*(n_inv - 1)
