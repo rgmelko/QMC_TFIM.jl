@@ -60,8 +60,13 @@ ns = zeros(MCS)
     mags[i] = magnetization(spin_prop)
 end
 
+open(output_file, "a") do io
+    writedlm(io, measurements, " ")
+end
+
 n_inv = 1. / mean(ns)
 
 @info "mean M is:\t" mean(mags)
+@info "mean |M| is:\t" mean(abs, mags)
 @info "mean M²:\t"  mean(x->x^2, mags)
 @info "Energy is:\t" h*(n_inv - 1) - J_*nbonds(H)/nspins(H)
