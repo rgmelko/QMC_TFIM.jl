@@ -27,8 +27,8 @@ end
 
 # Projector parameters
 M = 500 # length of the projector operator_list is 2M
-h = 1.5
-J_ = 2.0
+h = 1.0
+J_ = 1.0
 MCS = 50000 # the number of Monte Carlo steps
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/h$(h)/"
@@ -45,7 +45,7 @@ qmc_state = BinaryQMCState(H, M)
     mc_step!(qmc_state, H)
 end
 
-measurements = falses(MCS, nspins(H))
+measurements = zeros(Int, MCS, nspins(H))
 
 mags = zeros(MCS)
 ns = zeros(MCS)
@@ -60,7 +60,7 @@ ns = zeros(MCS)
     mags[i] = magnetization(spin_prop)
 end
 
-open(output_file, "a") do io
+open(output_file, "w") do io
     writedlm(io, measurements, " ")
 end
 
