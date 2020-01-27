@@ -38,28 +38,25 @@ output_file = "$(root)samples.txt"
 # *******  Globals
 include("updates.jl") # functions for the Monte Carlo updates
 
-qmc_state = QMCState(lattice)
+H = TFIM(lattice, h, J_)
+qmc_state = BinaryQMCState(H, M)
 
 @showprogress "warming up..." for i in 1:div(MCS, 5)  # Equilibration
-    diagonal_update!(operator_list, h, J_, qmc_state)
-    cluster_data = linked_list_update(operator_list, qmc_state)
-    cluster_update!(operator_list, qmc_state, cluster_data)
+    mc_step!(qmc_state, H)
 end
 
-measurements = falses(MCS, qmc_state.nspins)
+measurements = falses(MCS, nspins(H))
 
 mags = zeros(MCS)
 ns = zeros(MCS)
 
 @showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
-    diagonal_update!(operator_list, h, J_, qmc_state)
-    cluster_data = linked_list_update(operator_list, qmc_state)
-    cluster_update!(operator_list, qmc_state, cluster_data)
+    mc_step!(qmc_state, H)
 
-    spin_prop = sample(qmc_state.left_config, operator_list)
+    spin_prop = sample(qmc_state.left_config, qmc_state.operator_list)
     measurements[i, :] = spin_prop
 
-    ns[i] = num_single_site_diag(operator_list)
+    ns[i] = num_single_site_diag(qmc_state.operator_list)
     mags[i] = magnetization(spin_prop)
 end
 
@@ -67,4 +64,4 @@ n_inv = 1. / mean(ns)
 
 @info "mean M is:\t" mean(mags)
 @info "mean M²:\t"  mean(x->x^2, mags)
-@info "Energy is:\t" h*(n_inv - 1) - J_*qmc_state.nbonds/qmc_state.nspins
+@info "Energy is:\t" h*(n_inv - 1) - J_*nbonds(H)/nspins(H)

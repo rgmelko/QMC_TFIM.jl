@@ -13,7 +13,6 @@ function lattice_bond_spins(::Chain{L, Fixed}) where {L}
     return [i + j for i in 1:(L-1), j in 0:1]
 end
 
-
 # 2D square lattice with fixed/open BCs
 function lattice_bond_spins(::Square{Tuple{L,L},Fixed} where {L})
     nSpin = L * L

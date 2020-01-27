@@ -3,32 +3,34 @@ abstract type OperatorForm end
 struct Diagonal <: OperatorForm end
 struct OffDiagonal <: OperatorForm end
 
-abstract type SSEOperator{N, F <: OperatorForm, L <: BoundedLattice} end
+# N is the number of sites the operator acts on
+abstract type SSEOperator{N, F <: OperatorForm} end
 
-struct SiteOperator{F, L} <: SSEOperator{1, F, L}
+struct SiteOperator{F} <: SSEOperator{1, F}
     i::Int
 end
-struct IdOperator{L} <: SSEOperator{1, Diagonal, L}
+struct IdOperator <: SSEOperator{1, Diagonal}
     i::Int
 end
-struct BondOperator{F, L} <: SSEOperator{2, F, L}
+struct BondOperator{F} <: SSEOperator{2, F}
     i::Int
     j::Int
 end
 
 function SiteOperator{F}(i::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
     @assert 0 < i <= length(lat)
-    return SiteOperator{F, L}(i)
+    return SiteOperator{F}(i)
 end
 
 function IdOperator(i::Int, lat::L) where L <: BoundedLattice
     @assert 0 < i <= length(lat)
-    return IdOperator{L}(i)
+    return IdOperator(i)
 end
+
 function BondOperator{F}(i::Int, j::Int, lat::L) where {L <: BoundedLattice, F <: OperatorForm}
     @assert 0 < i <= length(lat)
     @assert 0 < j <= length(lat)
-    return BondOperator{F, L}(i, j)
+    return BondOperator{F}(i, j)
 end
 
 operatorform(::Type{<:SSEOperator{N, F}}) where {N, F} = F

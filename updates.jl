@@ -17,16 +17,23 @@ struct ClusterData
 end
 
 
+@inline function mc_step!(qmc_state::BinaryQMCState, H::TFIM)
+    diagonal_update!(qmc_state, H)
+    cluster_data = linked_list_update(qmc_state, H)
+    cluster_update!(cluster_data, qmc_state, H)
+end
+
 #Diagonal update
-function diagonal_update!(operator_list, h, J_, qmc_state::QMCState)
-    lattice, bond_spin = qmc_state.lattice, qmc_state.bond_spin
-    nspins, nbonds = qmc_state.nspins, qmc_state.nbonds
+function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
+    lattice, bond_spin = H.lattice, H.bond_spin
+    Ns, Nb = nspins(H), nbonds(H)
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+    operator_list = qmc_state.operator_list
 
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     #equation 1.43
-    P_h = h * nspins / (h * nspins + 2.0 * J_ * nbonds) #J=1.0 tested only
+    P_h = H.h * Ns / (H.h * Ns + 2.0 * H.J * Nb) #J=1.0 tested only
 
     spin_prop = copy(spin_left)  #the propagated spin state
     for (n, op) in enumerate(operator_list)  #size of the operator list
@@ -37,10 +44,10 @@ function diagonal_update!(operator_list, h, J_, qmc_state::QMCState)
             while true
                 rr = rand()
                 if rr < P_h #probability to choose a single-site operator
-                    operator_list[n] = SiteOperator{Diagonal}(rand(1:nspins), lattice)
+                    operator_list[n] = SiteOperator{Diagonal}(rand(1:Ns), lattice)
                     break
                 else
-                    bond = rand(1:nbonds)
+                    bond = rand(1:Nb)
                     # spins at each end of the bond must be the same
                     if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]]
                         operator_list[n] = BondOperator{Diagonal}(bond_spin[bond, :]..., lattice)
@@ -60,11 +67,12 @@ end
 #############################################################################
 
 #LinkedList
-function linked_list_update(operator_list, qmc_state::QMCState)
-    nspins = qmc_state.nspins
+function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
+    Ns = nspins(H)
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+    operator_list = qmc_state.operator_list
 
-    len = 2*nspins
+    len = 2*Ns
     for op in operator_list
         if issiteoperator(op)
             len += 2
@@ -81,11 +89,11 @@ function linked_list_update(operator_list, qmc_state::QMCState)
     #Associates = zeros((Int,Int,Int),0)
     Associates = collect(repeat([nullt], len))
 
-    First = collect(1:nspins)
+    First = collect(1:Ns)
     idx = 0
 
     #The first N elements of the linked list are the spins of the LHS basis state
-    for i in 1:nspins
+    for i in 1:Ns
         idx += 1
         LegType[idx] = spin_left[i]
     end
@@ -148,7 +156,7 @@ function linked_list_update(operator_list, qmc_state::QMCState)
     end #i
 
     #The last N elements of the linked list are the final spin state
-    for i in 1:nspins
+    for i in 1:Ns
         idx += 1
         LinkList[idx] = First[i]
         LegType[idx] = spin_prop[i]
@@ -167,10 +175,11 @@ end #LinkedList
 #############################################################################
 
 #ClusterUpdate
-function cluster_update!(operator_list, qmc_state::QMCState, cluster_data::ClusterData)
-    lattice = qmc_state.lattice
-    nspins, nbonds = qmc_state.nspins, qmc_state.nbonds
+function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H::TFIM)
+    lattice = H.lattice
+    Ns = nspins(H)
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+    operator_list = qmc_state.operator_list
 
     LinkList = cluster_data.linked_list
     LegType = cluster_data.leg_types
@@ -218,12 +227,12 @@ function cluster_update!(operator_list, qmc_state::QMCState, cluster_data::Clust
     end #for i
 
     #map back basis states and operator list
-    for i in 1:nspins
+    for i in 1:Ns
         spin_left[i] = LegType[i]  #left basis state
-        spin_right[i] = LegType[lsize-nspins+i]  #right basis state
+        spin_right[i] = LegType[lsize-Ns+i]  #right basis state
     end
 
-    ocount = nspins + 1  #next on is leg nSpin + 1
+    ocount = Ns + 1  #next on is leg nSpin + 1
     for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
