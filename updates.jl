@@ -3,10 +3,6 @@
 # Defines the functions that perform the diagonal update, and also
 # that build the linked list and operator cluster update
 
-nullt = (0, 0, 0) #a null tuple
-
-############################ FUNCTIONS ######################################
-include("operators.jl")
 include("qmc.jl")
 
 
@@ -29,6 +25,16 @@ end
 mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 
 
+
+#  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
+#  (-1,i) is a diagonal site operator h
+#  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
+#  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j)
+@inline isdiagonal(op::NTuple{2, Int}) = (op[1] != -2)
+@inline issiteoperator(op::NTuple{2, Int}) = (op[1] <= 0)
+@inline isbondoperator(op::NTuple{2, Int}) = (op[1] > 0)
+
+
 #Diagonal update
 function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
     lattice, bond_spin = H.lattice, H.bond_spin
@@ -39,24 +45,25 @@ function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
     #define the Metropolis probability as a constant
     #https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     #equation 1.43
-    P_h = H.h * Ns / (H.h * Ns + 2.0 * H.J * Nb) #J=1.0 tested only
+    P_h = H.h * Ns / (H.h * Ns + 2.0 * H.J * Nb)
 
     spin_prop = copy(spin_left)  #the propagated spin state
-    for (n, op) in enumerate(operator_list)  #size of the operator list
+    @inbounds for (n, op) in enumerate(operator_list)
 
         if issiteoperator(op) && !isdiagonal(op)
-            spin_prop[op.i] ⊻= 1 #spinflip
+            spin_prop[op[2]] ⊻= 1 #spinflip
         else
             while true
                 rr = rand()
                 if rr < P_h #probability to choose a single-site operator
-                    operator_list[n] = SiteOperator{Diagonal}(rand(1:Ns), lattice)
+                    operator_list[n] = (-1, rand(1:Ns))
                     break
                 else
                     bond = rand(1:Nb)
                     # spins at each end of the bond must be the same
-                    if spin_prop[bond_spin[bond, 1]] == spin_prop[bond_spin[bond, 2]]
-                        operator_list[n] = BondOperator{Diagonal}(bond_spin[bond, :]..., lattice)
+                    site1, site2 = bond_spin[bond, :]
+                    if spin_prop[site1] == spin_prop[site2]
+                        operator_list[n] = (site1, site2)
                         break
                     end
                 end #if rr < P_h
@@ -72,6 +79,8 @@ end
 
 #############################################################################
 
+nullt = (0, 0, 0) #a null tuple
+
 #LinkedList
 function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     Ns = nspins(H)
@@ -82,7 +91,7 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     for op in operator_list
         if issiteoperator(op)
             len += 2
-        elseif isbondoperator(op)
+        else
             len += 4
         end
     end
@@ -107,56 +116,57 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     spin_prop = copy(spin_left)  #the propagated spin state
 
     #Now, add the 2M operators to the linked list.  Each has either 2 or 4 legs
-    for (n, op) in enumerate(operator_list)  #size of the operator list
+    @inbounds for op in operator_list
 
         if issiteoperator(op)
-            site = op.i
+            site = op[2]
             #lower or left leg
             idx += 1
-            LinkList[idx] = First[op.i]
-            LegType[idx] = spin_prop[op.i]
+            LinkList[idx] = First[site]
+            LegType[idx] = spin_prop[site]
             current_link = idx
 
             if !isdiagonal(op)  #off-diagonal site operator
-                spin_prop[op.i] ⊻= 1 #spinflip
+                spin_prop[site] ⊻= 1 #spinflip
             end
 
-            LinkList[First[op.i]] = current_link #completes backwards link
-            First[op.i] = current_link + 1
+            LinkList[First[site]] = current_link #completes backwards link
+            First[site] = current_link + 1
 
             #upper or right leg
             idx += 1
-            LegType[idx] = spin_prop[op.i]
+            LegType[idx] = spin_prop[site]
         else  #diagonal bond operator
+            site1, site2 = op
             #lower left
             idx += 1
-            LinkList[idx] = First[op.i]
-            LegType[idx] = spin_prop[op.i]
+            LinkList[idx] = First[site1]
+            LegType[idx] = spin_prop[site1]
             current_link = idx
 
-            LinkList[First[op.i]] = current_link #completes backwards link
-            First[op.i] = current_link + 2
+            LinkList[First[site1]] = current_link #completes backwards link
+            First[site1] = current_link + 2
             vertex1 = current_link
             Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
 
             #lower right
             idx += 1
-            LinkList[idx] = First[op.j]
-            LegType[idx] = spin_prop[op.j]
+            LinkList[idx] = First[site2]
+            LegType[idx] = spin_prop[site2]
             current_link = idx
 
-            LinkList[First[op.j]] = current_link #completes backwards link
-            First[op.j] = current_link + 2
+            LinkList[First[site2]] = current_link #completes backwards link
+            First[site2] = current_link + 2
             Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
 
             #upper left
             idx += 1
-            LegType[idx] = spin_prop[op.i]
+            LegType[idx] = spin_prop[site1]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
 
             #upper right
             idx += 1
-            LegType[idx] = spin_prop[op.j]
+            LegType[idx] = spin_prop[site2]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
         end #if
     end #i
@@ -196,21 +206,20 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     in_cluster = zeros(Int, lsize)
     cstack = zeros(Int, 0)  #This is the stack of vertices in a cluster
     ccount = 0 #cluster number counter
-    for i in 1:lsize
+    @inbounds for i in 1:lsize
         #Add a new leg onto the cluster
         if (in_cluster[i] == 0 && Associates[i] == nullt)
             ccount += 1
             push!(cstack, i)
-            in_cluster[cstack[end]] = ccount
+            in_cluster[i] = ccount
 
             flip = rand(Bool) #flip a coin for the SW cluster flip
             if flip
-                LegType[cstack[end]] ⊻= 1 #spinflip
+                LegType[i] ⊻= 1 #spinflip
             end
             while !isempty(cstack)
 
-                leg = LinkList[cstack[end]]
-                pop!(cstack)
+                leg = LinkList[pop!(cstack)]
 
                 if in_cluster[leg] == 0
                     in_cluster[leg] = ccount #add the new leg and flip it
@@ -220,11 +229,12 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
                     #now check all associates and add to cluster
                     assoc = Associates[leg] #a 3-element array
                     if assoc != nullt
-                        push!(cstack, assoc...)
-                        assoc_l = collect(assoc)
-                        in_cluster[assoc_l] .= ccount
-                        if flip
-                            LegType[assoc_l] .⊻= 1
+                        for a in assoc
+                            push!(cstack, a)
+                            in_cluster[a] = ccount
+                            if flip
+                                LegType[a] ⊻= 1
+                            end
                         end
                     end #if
                 end #if in_cluster == 0
@@ -239,14 +249,14 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     end
 
     ocount = Ns + 1  #next on is leg nSpin + 1
-    for (n, op) in enumerate(operator_list)
+    @inbounds for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
         else
-            if LegType[ocount] == LegType[ocount+1]  #diagonal
-                operator_list[n] = SiteOperator{Diagonal}(op.i, lattice)
-            else
-                operator_list[n] = SiteOperator{OffDiagonal}(op.i, lattice) #off-diagonal
+            if LegType[ocount] == LegType[ocount+1]  # diagonal
+                operator_list[n] = (-1, op[2])
+            else  # off-diagonal
+                operator_list[n] = (-2, op[2])
             end
             ocount += 2
         end
