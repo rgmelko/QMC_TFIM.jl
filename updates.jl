@@ -9,7 +9,7 @@ include("qmc.jl")
 struct ClusterData
     linked_list::Vector{Int}
     leg_types::Vector{Int}
-    associates::Vector{NTuple{3, Int}}
+    associates::Vector{NTuple{3,Int}}
 end
 
 
@@ -30,12 +30,11 @@ mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 #  (-1,i) is a diagonal site operator h
 #  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
 #  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j)
-@inline isdiagonal(op::NTuple{2, Int}) = (op[1] != -2)
-@inline issiteoperator(op::NTuple{2, Int}) = (op[1] <= 0)
-@inline isbondoperator(op::NTuple{2, Int}) = (op[1] > 0)
+@inline isdiagonal(op::NTuple{2,Int}) = (op[1] != -2)
+@inline issiteoperator(op::NTuple{2,Int}) = (op[1] <= 0)
+@inline isbondoperator(op::NTuple{2,Int}) = (op[1] > 0)
 
 
-#Diagonal update
 function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
     lattice, bond_spin = H.lattice, H.bond_spin
     Ns, Nb = nspins(H), nbonds(H)
@@ -49,7 +48,6 @@ function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
 
     spin_prop = copy(spin_left)  #the propagated spin state
     @inbounds for (n, op) in enumerate(operator_list)
-
         if issiteoperator(op) && !isdiagonal(op)
             spin_prop[op[2]] ⊻= 1 #spinflip
         else
@@ -66,10 +64,11 @@ function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
                         operator_list[n] = (site1, site2)
                         break
                     end
-                end #if rr < P_h
-            end #while
-        end # if
-    end #for i
+                end
+            end
+        end
+
+    end
 
     #DEBUG
     if spin_prop != spin_right  #check the spin propagation for error
@@ -81,13 +80,12 @@ end
 
 nullt = (0, 0, 0) #a null tuple
 
-#LinkedList
 function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     Ns = nspins(H)
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
     operator_list = qmc_state.operator_list
 
-    len = 2*Ns
+    len = 2 * Ns
     for op in operator_list
         if issiteoperator(op)
             len += 2
@@ -117,7 +115,6 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
 
     #Now, add the 2M operators to the linked list.  Each has either 2 or 4 legs
     @inbounds for op in operator_list
-
         if issiteoperator(op)
             site = op[2]
             #lower or left leg
@@ -168,8 +165,8 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
             idx += 1
             LegType[idx] = spin_prop[site2]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
-        end #if
-    end #i
+        end
+    end
 
     #The last N elements of the linked list are the final spin state
     for i in 1:Ns
@@ -186,11 +183,10 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
 
     return ClusterData(LinkList, LegType, Associates)
 
-end #LinkedList
+end
 
 #############################################################################
 
-#ClusterUpdate
 function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H::TFIM)
     lattice = H.lattice
     Ns = nspins(H)
@@ -206,6 +202,7 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     in_cluster = zeros(Int, lsize)
     cstack = zeros(Int, 0)  #This is the stack of vertices in a cluster
     ccount = 0 #cluster number counter
+
     @inbounds for i in 1:lsize
         #Add a new leg onto the cluster
         if (in_cluster[i] == 0 && Associates[i] == nullt)
@@ -217,8 +214,8 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
             if flip
                 LegType[i] ⊻= 1 #spinflip
             end
-            while !isempty(cstack)
 
+            while !isempty(cstack)
                 leg = LinkList[pop!(cstack)]
 
                 if in_cluster[leg] == 0
@@ -236,11 +233,12 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
                                 LegType[a] ⊻= 1
                             end
                         end
-                    end #if
-                end #if in_cluster == 0
-            end #while
-        end #if
-    end #for i
+                    end
+                end
+
+            end
+        end
+    end
 
     #map back basis states and operator list
     for i in 1:Ns
@@ -262,4 +260,4 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
         end
     end
 
-end #ClusterUpdate
+end

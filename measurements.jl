@@ -16,18 +16,8 @@ function sample(spin_left, operator_list)
     return spin_prop
 end
 
-magnetization(spin_prop) = mean(x->2x - 1, spin_prop)
+magnetization(spin_prop) = mean(x -> 2x - 1, spin_prop)
 
-function num_single_site_diag(operator_list)
-    return mean(x -> issiteoperator(x) && isdiagonal(x), operator_list)
-end
-
-
-function num_single_site_offdiag(operator_list)
-    return mean(x -> issiteoperator(x) && !isdiagonal(x), operator_list)
-end
-
-
-function num_single_site(operator_list)
-    return mean(issiteoperator, operator_list)
-end
+num_single_site_diag(operator_list) = mean(x -> issiteoperator(x) && isdiagonal(x), operator_list)
+num_single_site_offdiag(operator_list) = mean(x -> issiteoperator(x) && !isdiagonal(x), operator_list)
+num_single_site(operator_list) = mean(issiteoperator, operator_list)

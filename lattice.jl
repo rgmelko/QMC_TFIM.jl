@@ -4,12 +4,12 @@
 # The main data structure is the bond-spin index array, bond_spin[nBond,2]
 
 
-function lattice_bond_spins(::Chain{L, Periodic}) where {L}
+function lattice_bond_spins(::Chain{L,Periodic}) where {L}
     bond_spin = lattice_bond_spins(Chain(L; boundary = Fixed))
     return vcat(bond_spin, [L 1])
 end
 
-function lattice_bond_spins(::Chain{L, Fixed}) where {L}
+function lattice_bond_spins(::Chain{L,Fixed}) where {L}
     return [i + j for i in 1:(L-1), j in 0:1]
 end
 
