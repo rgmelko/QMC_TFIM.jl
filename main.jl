@@ -7,10 +7,9 @@ using ProgressMeter
 Random.seed!(1234)
 
 using DelimitedFiles
+using JLD2
+
 using Lattices
-
-include("measurements.jl") # functions for the Monte Carlo updates
-
 
 Dim = 1
 nX = 6
@@ -34,7 +33,8 @@ EQ_MCS = div(MCS, 10)
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/h$(h)/"
 mkpath(root)
-output_file = "$(root)samples.txt"
+samples_file = "$(root)samples.txt"
+qmc_state_file = "$(root)state.jld2"
 
 # *******  Globals
 include("updates.jl") # functions for the Monte Carlo updates
@@ -52,7 +52,7 @@ ns = zeros(MCS)
 
 @showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
     mc_step!(qmc_state, H) do cluster_data, qmc_state, H
-        spin_prop = sample(qmc_state.left_config, qmc_state.operator_list)
+        spin_prop = sample(qmc_state)
         measurements[i, :] = spin_prop
 
         ns[i] = num_single_site_diag(qmc_state.operator_list)
@@ -60,19 +60,23 @@ ns = zeros(MCS)
     end
 end
 
-open(output_file, "w") do io
+open(samples_file, "w") do io
     writedlm(io, measurements, " ")
 end
 
+@save qmc_state_file qmc_state
+
 n_inv = 1.0 / mean(ns)
 
-@info "mean M is:\t" mean(mags)
-@info "mean |M| is:\t" mean(abs, mags)
-@info "mean M²:\t" mean(x -> x^2, mags)
-@info "Energy is:\t" J_ * nbonds(H) / nspins(H) - h * (n_inv - 1)
+@info "mean M is:" mean(mags)
+@info "mean |M| is:" mean(abs, mags)
+@info "mean M²:" mean(x -> x^2, mags)
+@info "Energy is:" J_ * nbonds(H) / nspins(H) - h * (n_inv - 1)
 
-@info "Operator list length:\t" 2*M
-@info "Number of MC steps:\t" MCS
-@info "Number of equilibration steps:\t" EQ_MCS
+@info "Operator list length:" 2*M
+@info "Number of MC steps:" MCS
+@info "Number of equilibration steps:" EQ_MCS
 
 @show Dim, nX, PBC, h, J_
+
+@info "Samples outputted to file:" samples_file

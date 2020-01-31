@@ -3,14 +3,17 @@
 # Defines estimators and provides measurements
 using Statistics
 
+include("qmc.jl")
 
-function sample(spin_left, operator_list)
+function sample(qmc_state::BinaryQMCState)
+    operator_list = qmc_state.operator_list
+
     M = length(operator_list) ÷ 2
-    spin_prop = copy(spin_left)
+    spin_prop = copy(qmc_state.left_config)
 
-    for o in operator_list[1:M] #propagate half the list only (to the middle)
-        if issiteoperator(o) && !isdiagonal(o)
-            spin_prop[o[2]] ⊻= 1 #spinflip
+    for op in operator_list[1:M] #propagate half the list only (to the middle)
+        if issiteoperator(op) && !isdiagonal(op)
+            spin_prop[op[2]] ⊻= 1 #spinflip
         end
     end
     return spin_prop
