@@ -14,7 +14,7 @@ dim(::Hamiltonian{D,N}) where {D,N} = N
 
 struct TFIM{N,L} <: Hamiltonian{2,N,L}
     lattice::L
-    bond_spin::Array{Int,2}
+    bond_spin::Vector{NTuple{2, Int}}
     h::Float64
     J::Float64
 end

@@ -5,6 +5,8 @@
 
 include("measurements.jl")
 
+using DataStructures
+
 
 struct ClusterData
     linked_list::Vector{Int}
@@ -57,7 +59,7 @@ function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
                     operator_list[n] = (-1, rand(1:Ns))
                     break
                 else
-                    site1, site2 = bond_spin[rand(1:Nb), :]
+                    site1, site2 = bond_spin[rand(1:Nb)]
                     # spins at each end of the bond must be the same
                     if spin_prop[site1] == spin_prop[site2]
                         operator_list[n] = (site1, site2)
@@ -96,7 +98,7 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     LegType = falses(len)
 
     # A diagonal bond operator has non trivial associates for cluster building
-    Associates = collect(repeat([nullt], len))
+    Associates = [nullt for _ in 1:len]
 
     First = collect(1:Ns)
     idx = 0
@@ -196,12 +198,12 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     lsize = length(LinkList)
 
     in_cluster = zeros(Int, lsize)
-    cstack = zeros(Int, 0)  # This is the stack of vertices in a cluster
+    cstack = Stack{Int}()  # This is the stack of vertices in a cluster
     ccount = 0  # cluster number counter
 
     @inbounds for i in 1:lsize
         # Add a new leg onto the cluster
-        if (in_cluster[i] == 0 && Associates[i] == nullt)
+        if (in_cluster[i] == 0 && Associates[i] === nullt)
             ccount += 1
             push!(cstack, i)
             in_cluster[i] = ccount
@@ -219,9 +221,10 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
                     if flip
                         LegType[leg] ⊻= 1
                     end
+
                     # now check all associates and add to cluster
                     assoc = Associates[leg]  # a 3-element array
-                    if assoc != nullt
+                    if assoc !== nullt
                         for a in assoc
                             push!(cstack, a)
                             in_cluster[a] = ccount
@@ -242,7 +245,7 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
         spin_right[i] = LegType[lsize-Ns+i]  # right basis state
     end
 
-    ocount = Ns + 1  # next on is leg nSpin + 1
+    ocount = Ns + 1  # next on is leg Ns + 1
     @inbounds for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
