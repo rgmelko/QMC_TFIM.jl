@@ -31,7 +31,7 @@ M = 700 # length of the projector operator_list is 2M
 MCS = 100000 # the number of Monte Carlo steps
 EQ_MCS = div(MCS, 10)
 
-root = "./data/$(Dim)D/$(nX)/$(BC_name)/h$(h)/"
+root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/"
 mkpath(root)
 samples_file = "$(root)samples.txt"
 qmc_state_file = "$(root)state.jld2"
