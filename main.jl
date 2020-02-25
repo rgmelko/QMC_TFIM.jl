@@ -8,14 +8,15 @@ Random.seed!(1234)
 
 using DelimitedFiles
 using JLD2
+using Printf
 
 using Lattices
 
 Dim = 1
-nX = 6
+nX = 4
 PBC = true
-h = 1.5
-J_ = 2.0
+h = 1.0
+J_ = 1.0
 
 BC = PBC ? Periodic : Fixed
 BC_name = PBC ? "PBC" : "OBC"
@@ -27,13 +28,15 @@ else
 end
 
 # MC parameters
-M = 700 # length of the projector operator_list is 2M
-MCS = 100000 # the number of Monte Carlo steps
+M = 2500 # length of the projector operator_list is 2M
+MCS = 100_000 # the number of samples to record
 EQ_MCS = div(MCS, 10)
+skip = 5  # number of MC steps to perform between each msmt
 
-root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/"
+root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
 mkpath(root)
 samples_file = "$(root)samples.txt"
+info_file = "$(root)info.txt"
 qmc_state_file = "$(root)state.jld2"
 
 # *******  Globals
@@ -58,25 +61,49 @@ ns = zeros(MCS)
         ns[i] = num_single_site_diag(qmc_state.operator_list)
         mags[i] = magnetization(spin_prop)
     end
+
+    for _ in 1:skip
+        mc_step!(qmc_state, H)
+    end
 end
 
 open(samples_file, "w") do io
     writedlm(io, measurements, " ")
 end
 
-@save qmc_state_file qmc_state
+@time @save qmc_state_file qmc_state
 
-n_inv = 1.0 / mean(ns)
+energy(H::TFIM) = n -> (H.J * (nbonds(H) / nspins(H)) - H.h * ((1.0 / n) - 1))
+include("error.jl")
 
-@info "mean M is:" mean(mags)
-@info "mean |M| is:" mean(abs, mags)
-@info "mean M²:" mean(x -> x^2, mags)
-@info "Energy is:" J_ * nbonds(H) / nspins(H) - h * (n_inv - 1)
 
-@info "Operator list length:" 2*M
-@info "Number of MC steps:" MCS
-@info "Number of equilibration steps:" EQ_MCS
+mag = mean_and_stderr(mags)
+abs_mag = mean_and_stderr(abs, mags)
+mag_sqr = mean_and_stderr(x -> x^2, mags)
 
-@show Dim, nX, PBC, h, J_
+@time energy_ = jackknife(energy(H), ns)
+@time corr_time = correlation_time(mags)
 
-@info "Samples outputted to file:" samples_file
+println()
+
+open(info_file, "w") do file_io
+    streams = [Base.stdout, file_io]
+
+    for io in streams
+        @printf(io, "⟨M⟩   = % .16f +/- %.16f\n", mag.val, mag.err)
+        @printf(io, "⟨|M|⟩ = % .16f +/- %.16f\n", abs_mag.val, abs_mag.err)
+        @printf(io, "⟨M^2⟩ = % .16f +/- %.16f\n", mag_sqr.val, mag_sqr.err)
+        @printf(io, "⟨E⟩   = % .16f +/- %.16f\n\n", energy_.val, energy_.err)
+
+        println(io, "Correlation time: $(corr_time)\n")
+
+        println(io, "Operator list length: $(2*M)")
+        println(io, "Number of MC measurements: $(MCS)")
+        println(io, "Number of equilibration steps: $(EQ_MCS)")
+        println(io, "Number of skips between measurements: $(skip)\n")
+
+        println(io, "Dim = $(Dim), nX = $(nX), PBC = $(PBC), h = $(h), J = $(J_)\n")
+
+        println(io, "Samples outputted to file: $(samples_file)")
+    end
+end

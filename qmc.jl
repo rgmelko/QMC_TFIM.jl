@@ -1,3 +1,5 @@
+import Base: zero
+
 
 include("lattice.jl") # define the spatial lattice
 
