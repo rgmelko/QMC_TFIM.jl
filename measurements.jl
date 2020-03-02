@@ -20,6 +20,22 @@ function sample(qmc_state::BinaryQMCState)
     return spin_prop
 end
 
+function simulation_cell(qmc_state::BinaryQMCState)
+    operator_list = qmc_state.operator_list
+
+    cell = falses(length(operator_list), length(qmc_state.left_config))
+    spin_prop = copy(qmc_state.left_config)
+
+    for (n, op) in enumerate(operator_list)
+        if issiteoperator(op) && !isdiagonal(op)
+            spin_prop[op[2]] ⊻= 1 #spinflip
+        end
+        copy!(cell[n, :], spin_prop)
+    end
+    return cell
+end
+
+
 magnetization(spin_prop) = mean(x -> 2x - 1, spin_prop)
 
 num_single_site_diag(operator_list) = mean(x -> issiteoperator(x) && isdiagonal(x), operator_list)
@@ -51,10 +67,10 @@ function correlation_time(m::Vector)
     ac = autocorrelation(m)
     ac_0 = ac[1]
 
-    corr_time = 1.0
+    corr_time = 0.0
     @inbounds for M in axes(ac, 1)
-        corr_time += 2*(ac[M] / ac_0)
-        if M >= 5*corr_time
+        corr_time += (ac[M] / ac_0)
+        if M >= 10*corr_time
             break
         end
     end

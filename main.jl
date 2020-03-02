@@ -28,10 +28,10 @@ else
 end
 
 # MC parameters
-M = 2500 # length of the projector operator_list is 2M
+M = 1000 # length of the projector operator_list is 2M
 MCS = 100_000 # the number of samples to record
 EQ_MCS = div(MCS, 10)
-skip = 5  # number of MC steps to perform between each msmt
+skip = 0  # number of MC steps to perform between each msmt
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
 mkpath(root)
