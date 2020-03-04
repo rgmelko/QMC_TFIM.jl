@@ -17,7 +17,10 @@ end
 
 function mc_step!(f::Function, qmc_state::BinaryQMCState, H::TFIM)
     diagonal_update!(qmc_state, H)
-    cluster_data = linked_list_update(qmc_state, H)
+    println(qmc_state)
+
+    cluster_data = linked_list_update_beta(qmc_state, H)
+    println(cluster_data)
 
     f(cluster_data, qmc_state, H)
 
@@ -331,3 +334,119 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     end
 
 end
+
+#############################################################################
+#############  FINITE BETA FUNCTIONS BELOW
+#############################################################################
+
+function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
+    Ns = nspins(H)
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+
+    len = 0
+    for op in qmc_state.operator_list
+        if issiteoperator(op)
+            len += 2
+        else
+            len += 4
+        end
+    end
+
+    # initialize linked list data structures
+    LinkList = zeros(Int, len)  # needed for cluster update
+    LegType = falses(len)
+
+    # A diagonal bond operator has non trivial associates for cluster building
+    Associates = [nullt for _ in 1:len]
+
+    First = zeros(Int,Ns)  #initialize the First list
+    Last = zeros(Int,Ns)   #initialize the Last list
+    idx = 0
+
+    spin_prop = copy(spin_left)  # the propagated spin state
+
+    # Now, add the 2M operators to the linked list. Each has either 2 or 4 legs
+    @inbounds for op in qmc_state.operator_list
+        if issiteoperator(op)
+            site = op[2]
+            # lower or left leg
+            idx += 1
+            LinkList[idx] = First[site]
+            LegType[idx] = spin_prop[site]
+            current_link = idx
+
+            if !isdiagonal(op)  # off-diagonal site operator
+                spin_prop[site] ⊻= 1  # spinflip
+            end
+
+            if First[site] != 0
+                LinkList[First[site]] = current_link  # completes backwards link
+            else
+                Last[site] = current_link
+            end
+            First[site] = current_link + 1
+
+            # upper or right leg
+            idx += 1
+            LegType[idx] = spin_prop[site]
+        else  # diagonal bond operator
+            site1, site2 = op
+
+            # lower left
+            idx += 1
+            LinkList[idx] = First[site1]
+            LegType[idx] = spin_prop[site1]
+            current_link = idx
+
+			if First[site1] != 0
+                LinkList[First[site1]] = current_link  # completes backwards link
+            else
+                Last[site1] = current_link
+            end
+
+            First[site1] = current_link + 2
+            vertex1 = current_link
+            Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
+
+            # lower right
+            idx += 1
+            LinkList[idx] = First[site2]
+            LegType[idx] = spin_prop[site2]
+            current_link = idx
+
+			if First[site2] != 0
+                LinkList[First[site2]] = current_link  # completes backwards link
+            else
+                Last[site2] = current_link
+            end
+
+            First[site2] = current_link + 2
+            Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
+
+            # upper left
+            idx += 1
+            LegType[idx] = spin_prop[site1]
+            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
+
+            # upper right
+            idx += 1
+            LegType[idx] = spin_prop[site2]
+            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
+        end
+    end
+
+    #Periodic boundary conditions for finite-beta
+    for i in 1:Ns
+        LinkList[First[i]] = Last[i]
+        LinkList[Last[i]] = First[i]
+    end
+
+    # DEBUG
+    # if spin_prop != spin_right
+    #     @debug "Basis state propagation error: LINKED LIST"
+    # end
+
+    return ClusterData(LinkList, LegType, Associates)
+
+end
+
