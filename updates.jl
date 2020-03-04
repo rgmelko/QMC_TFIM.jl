@@ -17,10 +17,8 @@ end
 
 function mc_step!(f::Function, qmc_state::BinaryQMCState, H::TFIM)
     diagonal_update!(qmc_state, H)
-    println(qmc_state)
 
-    cluster_data = linked_list_update_beta(qmc_state, H)
-    println(cluster_data)
+    cluster_data = linked_list_update(qmc_state, H)
 
     f(cluster_data, qmc_state, H)
 
@@ -336,7 +334,7 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
 end
 
 #############################################################################
-#############  FINITE BETA FUNCTIONS BELOW
+#############  FINITE BETA FUNCTIONS BELOW ##################################
 #############################################################################
 
 function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
@@ -347,7 +345,7 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
     for op in qmc_state.operator_list
         if issiteoperator(op)
             len += 2
-        else
+        elseif isbondoperator(op)
             len += 4
         end
     end
@@ -389,7 +387,7 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
             # upper or right leg
             idx += 1
             LegType[idx] = spin_prop[site]
-        else  # diagonal bond operator
+        elseif isbondoperator(op)  # diagonal bond operator
             site1, site2 = op
 
             # lower left
@@ -437,14 +435,16 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
 
     #Periodic boundary conditions for finite-beta
     for i in 1:Ns
-        LinkList[First[i]] = Last[i]
-        LinkList[Last[i]] = First[i]
+		if First[i] != 0  #This might be encountered at high temperatures
+            LinkList[First[i]] = Last[i]
+            LinkList[Last[i]] = First[i]
+        end
     end
 
     # DEBUG
-    # if spin_prop != spin_right
-    #     @debug "Basis state propagation error: LINKED LIST"
-    # end
+     if spin_prop != spin_right
+         @debug "Basis state propagation error: LINKED LIST"
+     end
 
     return ClusterData(LinkList, LegType, Associates)
 
