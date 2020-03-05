@@ -14,6 +14,15 @@ struct ClusterData
     associates::Vector{NTuple{3,Int}}
 end
 
+#  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
+#  (-1,i) is a diagonal site operator h
+#  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
+#  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j)
+@inline isdiagonal(op::NTuple{2,Int}) = (op[1] != -2)
+@inline isidentity(op::NTuple{2,Int}) = (op[1] == 0)
+@inline issiteoperator(op::NTuple{2,Int}) = (op[1] < 0)
+@inline isbondoperator(op::NTuple{2,Int}) = (op[1] > 0)
+
 
 function mc_step!(f::Function, qmc_state::BinaryQMCState, H::TFIM)
     diagonal_update!(qmc_state, H)
@@ -27,18 +36,23 @@ end
 
 mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 
+########################## finite-beta #######################################
+
+function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Real)
+
+    diagonal_update_beta!(qmc_state, H, beta)
+
+    cluster_data = linked_list_update_beta(qmc_state, H)
+
+    f(cluster_data, qmc_state, H)
+
+    cluster_update!(cluster_data, qmc_state, H)
+end
+
+mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 
 
-#  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
-#  (-1,i) is a diagonal site operator h
-#  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE
-#  (i,j) is a diagonal bond operator J(sigma^z_i sigma^z_j)
-@inline isdiagonal(op::NTuple{2,Int}) = (op[1] != -2)
-@inline isidentity(op::NTuple{2,Int}) = (op[1] == 0)
-@inline issiteoperator(op::NTuple{2,Int}) = (op[1] < 0)
-@inline isbondoperator(op::NTuple{2,Int}) = (op[1] > 0)
-
-
+#############################################################################
 
 function insert_diagonal_op!(operator_list, bond_spin, spin_prop, Ns, Nb, P_h::Float64, n::Int)
     if rand() < P_h  # probability to choose a single-site operator
@@ -56,6 +70,7 @@ function insert_diagonal_op!(operator_list, bond_spin, spin_prop, Ns, Nb, P_h::F
     return false
 end
 
+#############################################################################
 
 function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
     bond_spin = H.bond_spin
@@ -96,57 +111,6 @@ function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
     # end
 end
 
-
-function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM, β::Real)
-    bond_spin = H.bond_spin
-    Ns, Nb = nspins(H), nbonds(H)
-    operator_list = qmc_state.operator_list
-
-    num_ids = count(isidentity, operator_list)
-
-    # define the Metropolis probability as a constant
-    # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
-    # equation 1.43
-    P_h = H.P_h
-    P_norm = β * H.P_normalization
-    P_remove = min(1, (num_ids + 1) / P_norm)
-    P_accept = min(1, P_norm / num_ids)
-
-    spin_prop = copy(qmc_state.left_config)  # the propagated spin state
-
-    @inbounds for (n, op) in enumerate(operator_list)
-        if !isdiagonal(op)
-            spin_prop[op[2]] ⊻= 1  # spinflip
-        elseif !isidentity(op)
-            if rand() < P_remove
-                operator_list[n] = (0, 0)
-                num_ids += 1
-                P_remove = min(1, (num_ids + 1) / P_norm)
-                P_accept = min(1, P_norm / num_ids)
-            end
-        else
-            if rand() < P_accept
-                if rand() < P_h  # probability to choose a single-site operator
-                    operator_list[n] = (-1, rand(1:Ns))
-                else
-                    site1, site2 = bond_spin[rand(1:Nb)]
-                    # spins at each end of the bond must be the same
-                    if spin_prop[site1] == spin_prop[site2]
-                        operator_list[n] = (site1, site2)
-                    end
-                end
-                num_ids -= 1
-                P_remove = min(1, (num_ids + 1) / P_norm)
-                P_accept = min(1, P_norm / num_ids)
-            end
-        end
-    end
-
-    # DEBUG
-    if spin_prop != qmc_state.right_config  # check the spin propagation for error
-        error("Basis state propagation error in diagonal update!")
-    end
-end
 
 #############################################################################
 
@@ -257,6 +221,7 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
 end
 
 #############################################################################
+#This function works for both projector and finite-beta formalism
 
 function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H::TFIM)
     Ns = nspins(H)
@@ -311,10 +276,13 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
         end
     end
 
+    #println(in_cluster)
+
     # map back basis states and operator list
     for i in 1:Ns
         spin_left[i] = LegType[i]  # left basis state
         spin_right[i] = LegType[lsize-Ns+i]  # right basis state
+        #may throw a segfault for very high temperatures when lsize < Ns
     end
 
     ocount = Ns + 1  # next on is leg Ns + 1
@@ -335,6 +303,61 @@ end
 
 #############################################################################
 #############  FINITE BETA FUNCTIONS BELOW ##################################
+#############################################################################
+
+function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
+    bond_spin = H.bond_spin
+    Ns, Nb = nspins(H), nbonds(H)
+    operator_list = qmc_state.operator_list
+    #println(operator_list)
+
+    num_ids = count(isidentity, operator_list)
+
+    # define the Metropolis probability as a constant
+    # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
+    # equation 1.42
+    P_h = H.P_h
+    P_norm = beta * H.P_normalization
+    P_remove = min(1, (num_ids + 1) / P_norm)
+    P_accept = min(1, P_norm / num_ids)
+	#println(P_remove," ",P_accept)
+
+    spin_prop = copy(qmc_state.left_config)  # the propagated spin state
+
+    @inbounds for (n, op) in enumerate(operator_list)
+        if !isdiagonal(op)
+            spin_prop[op[2]] ⊻= 1  # spinflip
+        elseif !isidentity(op)
+            if rand() < P_remove
+                operator_list[n] = (0, 0)
+                num_ids += 1
+                P_remove = min(1, (num_ids + 1) / P_norm)
+                P_accept = min(1, P_norm / num_ids)
+            end
+        else
+            if rand() < P_accept
+                if rand() < P_h  # probability to choose a single-site operator
+                    operator_list[n] = (-1, rand(1:Ns))
+                else
+                    site1, site2 = bond_spin[rand(1:Nb)]
+                    # spins at each end of the bond must be the same
+                    if spin_prop[site1] == spin_prop[site2]
+                        operator_list[n] = (site1, site2)
+                    end
+                end
+                num_ids -= 1
+                P_remove = min(1, (num_ids + 1) / P_norm)
+                P_accept = min(1, P_norm / num_ids)
+            end
+        end
+    end
+
+    # DEBUG
+    if spin_prop != qmc_state.right_config  # check the spin propagation for error
+        error("Basis state propagation error in diagonal update!")
+    end
+end
+
 #############################################################################
 
 function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
