@@ -13,7 +13,7 @@ using Printf
 using Lattices
 
 Dim = 1
-nX = 5
+nX = 4
 PBC = true
 h = 4.0
 J_ = 1.0
@@ -28,9 +28,9 @@ else
 end
 
 # MC parameters
-M = 5 # length of the projector operator_list is 2M
+M = 4 # length of the projector operator_list is 2M
 MCS = 1 # the number of samples to record
-EQ_MCS = 1 #div(MCS, 10)
+EQ_MCS = 100 #div(MCS, 10)
 skip = 0  # number of MC steps to perform between each msmt
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
@@ -53,8 +53,8 @@ measurements = zeros(Int, MCS, nspins(H))
 mags = zeros(MCS)
 ns = zeros(MCS)
 
-beta = 5
-for i in 1:MCS # Monte Carlo Production Steps
+beta = 2
+for i in 1:EQ_MCS # Monte Carlo Steps
     mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H end
 end
 
