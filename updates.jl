@@ -348,12 +348,6 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
 
 end
 
-function grow_op_list!(operator_list, factor)
-    len = round(Int, (factor - 1) * length(operator_list))
-    tail = init_op_list(len)
-    append!(operator_list, tail)
-end
-
 #############################################################################
 
 function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
