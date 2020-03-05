@@ -51,7 +51,7 @@ function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Re
     cluster_update_beta!(cluster_data, qmc_state, H)
 end
 
-mc_step_beta!(qmc_state, H) = mc_step_beta!((args...) -> nothing, qmc_state, H)
+mc_step_beta!(qmc_state, H, beta) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta)
 
 
 #############################################################################
