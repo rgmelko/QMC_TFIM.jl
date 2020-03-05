@@ -356,6 +356,14 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
     if spin_prop != qmc_state.right_config  # check the spin propagation for error
         error("Basis state propagation error in diagonal update!")
     end
+
+    #here, we check to see if n is getting too big
+    total_list_size = size(operator_list,1)
+    num_ops = total_list_size - num_ids
+    if 1.2*num_ops > total_list_size 
+        grow_op_list(operator_list,1.5)
+    end
+
 end
 
 #############################################################################
