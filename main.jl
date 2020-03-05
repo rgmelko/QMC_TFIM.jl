@@ -13,9 +13,9 @@ using Printf
 using Lattices
 
 Dim = 1
-nX = 4
-PBC = true
-h = 4.0
+nX = 6
+PBC = false
+h = 1.0
 J_ = 1.0
 
 BC = PBC ? Periodic : Fixed
@@ -28,9 +28,9 @@ else
 end
 
 # MC parameters
-M = 4 # length of the projector operator_list is 2M
-MCS = 1 # the number of samples to record
-EQ_MCS = 100 #div(MCS, 10)
+M = 100 # length of the projector operator_list is 2M
+MCS = 100 # the number of samples to record
+EQ_MCS = div(MCS, 10)
 skip = 0  # number of MC steps to perform between each msmt
 
 root = "./data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
@@ -45,17 +45,22 @@ include("updates.jl") # functions for the Monte Carlo updates
 H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
 
-#@showprogress "warming up..." for i in 1:EQ_MCS  # Equilibration
-#    mc_step!(qmc_state, H)
-#end
+## FINITE-BETA
+beta = 20.0
+for i in 1:EQ_MCS  # Equilibration
+    mc_step_beta!(qmc_state, H, beta) 
+end
 
 measurements = zeros(Int, MCS, nspins(H))
 mags = zeros(MCS)
 ns = zeros(MCS)
 
-beta = 2
-for i in 1:EQ_MCS # Monte Carlo Steps
-    mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H end
+for i in 1:MCS # Monte Carlo Steps
+    mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H 
+        #mags[i] = magnetization(qmc_state.left_config)	
+		spin_prop = sample(qmc_state)
+        mags[i] = magnetization(spin_prop)
+    end
 end
 
 
@@ -80,13 +85,14 @@ end
 # @time @save qmc_state_file qmc_state
 # 
 # energy(H::TFIM) = n -> (H.J * (nbonds(H) / nspins(H)) - H.h * ((1.0 / n) - 1))
-# include("error.jl")
+ include("error.jl")
 # 
 # 
 # mag = mean_and_stderr(mags)
 # abs_mag = mean_and_stderr(abs, mags)
-# mag_sqr = mean_and_stderr(x -> x^2, mags)
-# 
+ mag_sqr = mean_and_stderr(x -> x^2, mags)
+ println(mag_sqr)
+ 
 # @time energy_ = jackknife(energy(H), ns)
 # @time corr_time = correlation_time(mags)
 # 
