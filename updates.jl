@@ -41,15 +41,17 @@ mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Real)
 
     diagonal_update_beta!(qmc_state, H, beta)
+    #print(qmc_state)
 
     cluster_data = linked_list_update_beta(qmc_state, H)
+    #print(cluster_data)
 
     f(cluster_data, qmc_state, H)
 
-    cluster_update!(cluster_data, qmc_state, H)
+    cluster_update_beta!(cluster_data, qmc_state, H)
 end
 
-mc_step_beta!(qmc_state, H) = mc_step_beta!((args...) -> nothing, qmc_state, H)
+mc_step_beta!(qmc_state, H, beta) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta)
 
 
 #############################################################################
@@ -203,7 +205,6 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
 end
 
 #############################################################################
-#This function works for both projector and finite-beta formalism
 
 function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H::TFIM)
     Ns = nspins(H)
@@ -264,7 +265,6 @@ function cluster_update!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H
     for i in 1:Ns
         spin_left[i] = LegType[i]  # left basis state
         spin_right[i] = LegType[lsize-Ns+i]  # right basis state
-        #may throw a segfault for very high temperatures when lsize < Ns
     end
 
     ocount = Ns + 1  # next on is leg Ns + 1
@@ -345,6 +345,7 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
     if 1.2*num_ops > total_list_size
         grow_op_list!(operator_list,1.5)
     end
+	#println(length(operator_list))
 
 end
 
@@ -462,3 +463,79 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
     return ClusterData(LinkList, LegType, Associates)
 
 end
+
+#############################################################################
+
+function cluster_update_beta!(cluster_data::ClusterData, qmc_state::BinaryQMCState, H::TFIM)
+    Ns = nspins(H)
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+    operator_list = qmc_state.operator_list
+
+    LinkList = cluster_data.linked_list
+    LegType = cluster_data.leg_types
+    Associates = cluster_data.associates
+
+    lsize = length(LinkList)
+
+    in_cluster = zeros(Int, lsize)
+    cstack = Stack{Int}()  # This is the stack of vertices in a cluster
+    ccount = 0  # cluster number counter
+
+    @inbounds for i in 1:lsize
+        # Add a new leg onto the cluster
+        if (in_cluster[i] == 0 && Associates[i] === nullt)
+            ccount += 1
+            push!(cstack, i)
+            in_cluster[i] = ccount
+
+            flip = rand(Bool)  # flip a coin for the SW cluster flip
+            if flip
+                LegType[i] ⊻= 1  # spinflip
+            end
+
+            while !isempty(cstack)
+                leg = LinkList[pop!(cstack)]
+
+                if in_cluster[leg] == 0
+                    in_cluster[leg] = ccount  # add the new leg and flip it
+                    if flip
+                        LegType[leg] ⊻= 1
+                    end
+
+                    # now check all associates and add to cluster
+                    assoc = Associates[leg]  # a 3-tuple
+                    if assoc !== nullt
+                        for a in assoc
+                            push!(cstack, a)
+                            in_cluster[a] = ccount
+                            if flip
+                                LegType[a] ⊻= 1
+                            end
+                        end
+                    end
+                end
+
+            end
+        end
+    end
+
+    #println(in_cluster)
+
+    ocount = 1  # first leg	
+    @inbounds for (n, op) in enumerate(operator_list)
+        if isbondoperator(op)
+            ocount += 4
+        elseif !isidentity(op)
+            if LegType[ocount] == LegType[ocount+1]  # diagonal
+                operator_list[n] = (-1, op[2])
+            else  # off-diagonal
+                operator_list[n] = (-2, op[2])
+            end
+            ocount += 2
+        end
+    end
+
+	#println(operator_list)
+
+end
+
