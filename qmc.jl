@@ -4,8 +4,8 @@ import Base: zero
 include("lattice.jl") # define the spatial lattice
 
 
-function init_op_list(lattice, M)
-    operator_list::Vector{NTuple{2,Int}} = [(0, 0) for _ in 1:2M]
+function init_op_list(length)
+    operator_list::Vector{NTuple{2,Int}} = [(0, 0) for _ in 1:length]
     return operator_list
 end
 
@@ -58,7 +58,7 @@ struct BinaryQMCState{N,H} <: AbstractQMCState{2,N,H}
 end
 
 function BinaryQMCState(H::Hamiltonian{2,N}, M::Int) where {N}
-    BinaryQMCState{N,typeof(H)}(zero(H), zero(H), init_op_list(H.lattice, M))
+    BinaryQMCState{N,typeof(H)}(zero(H), zero(H), init_op_list(2*M))
 end
 
 struct PottsQMCState{D,N,H} <: AbstractQMCState{D,N,H}
@@ -68,5 +68,5 @@ struct PottsQMCState{D,N,H} <: AbstractQMCState{D,N,H}
 end
 
 function PottsQMCState(H::Hamiltonian{D,N}, M::Int) where {D,N}
-    PottsQMCState{N,typeof(H)}(zero(H), zero(H), init_op_list(H.lattice, M))
+    PottsQMCState{N,typeof(H)}(zero(H), zero(H), init_op_list(2*M))
 end

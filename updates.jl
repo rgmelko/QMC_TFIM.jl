@@ -49,26 +49,8 @@ function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Re
     cluster_update!(cluster_data, qmc_state, H)
 end
 
-mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
+mc_step_beta!(qmc_state, H) = mc_step_beta!((args...) -> nothing, qmc_state, H)
 
-
-#############################################################################
-
-function insert_diagonal_op!(operator_list, bond_spin, spin_prop, Ns, Nb, P_h::Float64, n::Int)
-    if rand() < P_h  # probability to choose a single-site operator
-        operator_list[n] = (-1, rand(1:Ns))
-        return true
-    else
-        site1, site2 = bond_spin[rand(1:Nb)]
-        # spins at each end of the bond must be the same
-        if spin_prop[site1] == spin_prop[site2]
-            operator_list[n] = (site1, site2)
-            return true
-        end
-    end
-
-    return false
-end
 
 #############################################################################
 
@@ -358,12 +340,18 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
     end
 
     #here, we check to see if n is getting too big
-    total_list_size = size(operator_list,1)
+    total_list_size = length(operator_list)
     num_ops = total_list_size - num_ids
-    if 1.2*num_ops > total_list_size 
-        grow_op_list(operator_list,1.5)
+    if 1.2*num_ops > total_list_size
+        grow_op_list!(operator_list,1.5)
     end
 
+end
+
+function grow_op_list!(operator_list, factor)
+    len = round(Int, (factor - 1) * length(operator_list))
+    tail = init_op_list(len)
+    append!(operator_list, tail)
 end
 
 #############################################################################
@@ -480,4 +468,3 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
     return ClusterData(LinkList, LegType, Associates)
 
 end
-
