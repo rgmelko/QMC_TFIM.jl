@@ -28,7 +28,7 @@ else
 end
 
 # MC parameters
-M = 200 # length of the projector operator_list is 2M
+M = 100 # length of the projector operator_list is 2M
 MCS = 300000 # the number of samples to record
 EQ_MCS = div(MCS, 10)
 skip = 0  # number of MC steps to perform between each msmt
@@ -46,7 +46,7 @@ H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
 
 ## FINITE-BETA
-beta = 20.0
+beta = 0.8
 for i in 1:EQ_MCS  # Equilibration
     mc_step_beta!(qmc_state, H, beta) 
 end
@@ -59,7 +59,7 @@ ns = zeros(MCS)
     mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H 
         #mags[i] = magnetization(qmc_state.left_config)	
         #spin_prop = sample(qmc_state)
-        spin_prop = qmc_state.right_config
+        spin_prop = qmc_state.left_config
         mags[i] = magnetization(spin_prop)
     end
 end

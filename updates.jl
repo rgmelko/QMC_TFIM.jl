@@ -528,8 +528,14 @@ function cluster_update_beta!(cluster_data::ClusterData, qmc_state::BinaryQMCSta
     First = cluster_data.first
     Last = cluster_data.last
     for i in 1:Ns
-        spin_left[i] = LegType[Last[i]]  # left basis state
-        spin_right[i] = LegType[First[i]]  # right basis state
+        if First[i] != 0
+            spin_left[i] = LegType[Last[i]]  # left basis state
+            spin_right[i] = LegType[First[i]]  # right basis state
+        else
+			spin_left[i] = rand(Bool)
+			spin_right[i] = spin_left[i]   #randomly flip spins not connected to operators
+		end
+
     end
 
     ocount = 1  # first leg	
