@@ -14,7 +14,7 @@ using Lattices
 
 Dim = 1
 nX = 6
-PBC = false
+PBC = true
 h = 1.0
 J_ = 1.0
 
