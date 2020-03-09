@@ -12,6 +12,8 @@ struct ClusterData
     linked_list::Vector{Int}
     leg_types::BitVector
     associates::Vector{NTuple{3,Int}}
+    first::Vector{Int}
+    last::Vector{Int}
 end
 
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
@@ -200,7 +202,8 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     #     @debug "Basis state propagation error: LINKED LIST"
     # end
 
-    return ClusterData(LinkList, LegType, Associates)
+    Last = zeros(Int,1) #this is just a placeholder	
+    return ClusterData(LinkList, LegType, Associates,First,Last)
 
 end
 
@@ -460,7 +463,7 @@ function linked_list_update_beta(qmc_state::BinaryQMCState, H::TFIM)
          @debug "Basis state propagation error: LINKED LIST"
      end
 
-    return ClusterData(LinkList, LegType, Associates)
+    return ClusterData(LinkList, LegType, Associates,First,Last)
 
 end
 
@@ -520,6 +523,20 @@ function cluster_update_beta!(cluster_data::ClusterData, qmc_state::BinaryQMCSta
     end
 
     #println(in_cluster)
+
+    # map back basis states and operator list
+    First = cluster_data.first
+    Last = cluster_data.last
+    for i in 1:Ns
+        if First[i] != 0
+            spin_left[i] = LegType[Last[i]]  # left basis state
+            spin_right[i] = LegType[First[i]]  # right basis state
+        else
+			spin_left[i] = rand(Bool)
+			spin_right[i] = spin_left[i]   #randomly flip spins not connected to operators
+		end
+
+    end
 
     ocount = 1  # first leg	
     @inbounds for (n, op) in enumerate(operator_list)
