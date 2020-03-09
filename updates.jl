@@ -54,37 +54,37 @@ end
 mc_step_beta!(qmc_state, H, beta) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta)
 
 
+# returns true is operator insertion succeeded
+function insert_diagonal_operator!(qmc_state::BinaryQMCState, H::TFIM, spin_prop, n)
+    rr = rand()
+    if rr < H.P_h  # probability to choose a single-site operator
+        qmc_state.operator_list[n] = (-1, rand(1:H.Ns))
+        return true
+    else
+        site1, site2 = H.bond_spin[rand(1:H.Nb)]
+        # spins at each end of the bond must be the same
+        if spin_prop[site1] == spin_prop[site2]
+            qmc_state.operator_list[n] = (site1, site2)
+            return true
+        end
+    end
+
+    return false
+end
+
+
 #############################################################################
 
 function diagonal_update!(qmc_state::BinaryQMCState, H::TFIM)
-    bond_spin = H.bond_spin
-    Ns, Nb = nspins(H), nbonds(H)
-    operator_list = qmc_state.operator_list
-    P_h = H.P_h
-    # define the Metropolis probability as a constant
-    # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
-    # equation 1.43
-
-
     spin_prop = copy(qmc_state.left_config)  # the propagated spin state
 
-    @inbounds for (n, op) in enumerate(operator_list)
+    for (n, op) in enumerate(qmc_state.operator_list)
         if !isdiagonal(op)
             spin_prop[op[2]] ⊻= 1  # spinflip
         else
-            while true
-                rr = rand()
-                if rr < P_h  # probability to choose a single-site operator
-                    operator_list[n] = (-1, rand(1:Ns))
-                    break
-                else
-                    site1, site2 = bond_spin[rand(1:Nb)]
-                    # spins at each end of the bond must be the same
-                    if spin_prop[site1] == spin_prop[site2]
-                        operator_list[n] = (site1, site2)
-                        break
-                    end
-                end
+            success = false
+            while !success
+                success = insert_diagonal_operator!(qmc_state, H, spin_prop, n)
             end
         end
     end

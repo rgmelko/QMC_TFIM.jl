@@ -37,6 +37,9 @@ function TFIM(lattice::L, h::Float64, J::Float64) where {L<:BoundedLattice{N}} w
 
     Ns, Nb = length(lattice), length(bond_spin)
 
+    # define the Metropolis probability as a constant
+    # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
+    # equation 1.43
     P_h = h * Ns
     P_J = 2 * J * Nb
 
