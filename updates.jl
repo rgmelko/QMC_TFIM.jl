@@ -40,20 +40,19 @@ mc_step!(qmc_state, H) = mc_step!((args...) -> nothing, qmc_state, H)
 
 ########################## finite-beta #######################################
 
-function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Real)
-
-    diagonal_update_beta!(qmc_state, H, beta)
-    #print(qmc_state)
+function mc_step_beta!(f::Function, qmc_state::BinaryQMCState, H::TFIM, beta::Real; eq::Bool = false)
+    num_ops = diagonal_update_beta!(qmc_state, H, beta; eq = eq)
 
     cluster_data = linked_list_update_beta(qmc_state, H)
-    #print(cluster_data)
 
     f(cluster_data, qmc_state, H)
 
     cluster_update_beta!(cluster_data, qmc_state, H)
+
+    return num_ops
 end
 
-mc_step_beta!(qmc_state, H, beta) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta)
+mc_step_beta!(qmc_state, H, beta; eq = false) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta; eq = eq)
 
 
 # returns true is operator insertion succeeded
@@ -290,7 +289,7 @@ end
 #############  FINITE BETA FUNCTIONS BELOW ##################################
 #############################################################################
 
-function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
+function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real; eq::Bool = false)
 
     # define the Metropolis probability as a constant
     # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
@@ -331,12 +330,13 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
     #     error("Basis state propagation error in diagonal update!")
     # end
 
-    #here, we check to see if n is getting too big
     total_list_size = length(qmc_state.operator_list)
     num_ops = total_list_size - num_ids
-    if 1.2*num_ops > total_list_size
-        grow_op_list!(qmc_state.operator_list, 1.5)
+
+    if eq && 1.2*num_ops > length(qmc_state.operator_list)
+        resize_op_list!(qmc_state.operator_list, round(Int, 1.5*num_ops))
     end
+    return num_ops
 end
 
 #############################################################################

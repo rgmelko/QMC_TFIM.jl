@@ -12,14 +12,14 @@ end
 mean_and_stderr(x::Vector) = mean_and_stderr(identity, x)
 
 
-function jackknife(f::Function, x::Vector)
-    sum_x = sum(x)
-    N = length(x)
+function jackknife(f::Function, x::Vector...)
+    sum_x = [sum(x[i]) for i in 1:length(x)]
+    N = length(x[1])
 
     f_J = zeros(N)
     @simd for i in 1:N
-        x_J = (sum_x - x[i]) / (N - 1)
-        f_J[i] = f(x_J)
+        x_J = [(sum_x[j] - x[j][i]) / (N - 1) for j in 1:length(x)]
+        f_J[i] = f(x_J...)
     end
 
     μ = mean(f_J)
@@ -27,3 +27,4 @@ function jackknife(f::Function, x::Vector)
 
     return μ ± σ
 end
+jackknife(x::Vector) = jackknife(identity, x)

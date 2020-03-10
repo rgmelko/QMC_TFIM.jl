@@ -9,10 +9,13 @@ function init_op_list(length)
     return operator_list
 end
 
-function grow_op_list!(operator_list::Vector{NTuple{2,Int}}, factor::Real)
-    len = round(Int, (factor - 1) * length(operator_list))
-    tail = init_op_list(len)
-    append!(operator_list, tail)
+function resize_op_list!(operator_list::Vector{NTuple{2, Int}}, new_size::Int)
+    len = length(operator_list)
+
+    if len < new_size
+        tail = init_op_list(new_size - len)
+        append!(operator_list, tail)
+    end
 end
 
 abstract type Hamiltonian{D,N,L<:BoundedLattice{N}} end
