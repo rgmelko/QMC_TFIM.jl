@@ -9,8 +9,8 @@ include("QMC.jl")
 # using QMC
 
 Dim = 1
-nX = 10
-PBC = true
+nX = 6
+PBC = false
 h = 1.0
 J_ = 1.0
 

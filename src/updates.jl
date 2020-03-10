@@ -8,7 +8,7 @@ struct ClusterData
     leg_types::BitVector
     associates::Vector{NTuple{3,Int}}
     first::Vector{Int}
-    last::Vector{Int}
+    last::Union{Vector{Int}, Nothing}
 end
 
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
@@ -196,8 +196,7 @@ function linked_list_update(qmc_state::BinaryQMCState, H::TFIM)
     #     @debug "Basis state propagation error: LINKED LIST"
     # end
 
-    Last = zeros(Int,1) #this is just a placeholder	
-    return ClusterData(LinkList, LegType, Associates,First,Last)
+    return ClusterData(LinkList, LegType, Associates, First, nothing)
 
 end
 
