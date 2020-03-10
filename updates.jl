@@ -291,65 +291,52 @@ end
 #############################################################################
 
 function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real)
-    bond_spin = H.bond_spin
-    Ns, Nb = nspins(H), nbonds(H)
-    operator_list = qmc_state.operator_list
-    #println(operator_list)
-
-    num_ids = count(isidentity, operator_list)
 
     # define the Metropolis probability as a constant
     # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     # equation 1.42
-    P_h = H.P_h
     P_norm = beta * H.P_normalization
+
+    num_ids = count(isidentity, qmc_state.operator_list)
     P_remove = min(1, (num_ids + 1) / P_norm)
     P_accept = min(1, P_norm / num_ids)
-	#println(P_remove," ",P_accept)
 
     spin_prop = copy(qmc_state.left_config)  # the propagated spin state
 
-    @inbounds for (n, op) in enumerate(operator_list)
+    for (n, op) in enumerate(qmc_state.operator_list)
         if !isdiagonal(op)
             spin_prop[op[2]] ⊻= 1  # spinflip
         elseif !isidentity(op)
             if rand() < P_remove
-                operator_list[n] = (0, 0)
+                qmc_state.operator_list[n] = (0, 0)
                 num_ids += 1
                 P_remove = min(1, (num_ids + 1) / P_norm)
                 P_accept = min(1, P_norm / num_ids)
             end
         else
             if rand() < P_accept
-                if rand() < P_h  # probability to choose a single-site operator
-                    operator_list[n] = (-1, rand(1:Ns))
-                else
-                    site1, site2 = bond_spin[rand(1:Nb)]
-                    # spins at each end of the bond must be the same
-                    if spin_prop[site1] == spin_prop[site2]
-                        operator_list[n] = (site1, site2)
-                    end
+                success = insert_diagonal_operator!(qmc_state, H, spin_prop, n)
+
+                if success
+                    num_ids -= 1
+                    P_remove = min(1, (num_ids + 1) / P_norm)
+                    P_accept = min(1, P_norm / num_ids)
                 end
-                num_ids -= 1
-                P_remove = min(1, (num_ids + 1) / P_norm)
-                P_accept = min(1, P_norm / num_ids)
             end
         end
     end
 
     # DEBUG
-    if spin_prop != qmc_state.right_config  # check the spin propagation for error
-        error("Basis state propagation error in diagonal update!")
-    end
+    # if spin_prop != qmc_state.right_config  # check the spin propagation for error
+    #     error("Basis state propagation error in diagonal update!")
+    # end
 
     #here, we check to see if n is getting too big
-    total_list_size = length(operator_list)
+    total_list_size = length(qmc_state.operator_list)
     num_ops = total_list_size - num_ids
     if 1.2*num_ops > total_list_size
-        grow_op_list!(operator_list,1.5)
+        grow_op_list!(qmc_state.operator_list, 1.5)
     end
-	#println(length(operator_list))
-
 end
 
 #############################################################################

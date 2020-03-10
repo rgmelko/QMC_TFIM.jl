@@ -14,7 +14,7 @@ using Lattices
 
 Dim = 1
 nX = 6
-PBC = true
+PBC = false
 h = 1.0
 J_ = 1.0
 
@@ -29,7 +29,7 @@ end
 
 # MC parameters
 M = 100 # length of the projector operator_list is 2M
-MCS = 300000 # the number of samples to record
+MCS = 500000 # the number of samples to record
 EQ_MCS = div(MCS, 10)
 skip = 0  # number of MC steps to perform between each msmt
 
@@ -46,7 +46,8 @@ H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
 
 ## FINITE-BETA
-beta = 0.8
+beta = 20.0
+#@showprogress "Warm up..." 
 for i in 1:EQ_MCS  # Equilibration
     mc_step_beta!(qmc_state, H, beta) 
 end
@@ -68,67 +69,59 @@ end
 #mag_sqr = mean_and_stderr(x -> x^2, mags)
 #println(mag_sqr)
 
-## ZERO-T PROJECTOR
-#for i in 1:EQ_MCS  # Equilibration
-#    mc_step!(qmc_state, H) 
-#end
-#
-#measurements = zeros(Int, MCS, nspins(H))
-#mags = zeros(MCS)
-#ns = zeros(MCS)
-#
-#@showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
+# @showprogress "MCMC..." for i in 1:MCS # Monte Carlo Production Steps
+
 #    mc_step!(qmc_state, H) do cluster_data, qmc_state, H
 #        spin_prop = sample(qmc_state)
 #        measurements[i, :] = spin_prop
-#
+
 #        ns[i] = num_single_site_diag(qmc_state.operator_list)
 #        mags[i] = magnetization(spin_prop)
 #    end
-#
+
 #    for _ in 1:skip
 #        mc_step!(qmc_state, H)
 #    end
-#end
+# end
 
 # open(samples_file, "w") do io
 #     writedlm(io, measurements, " ")
 # end
-# 
+
 # @time @save qmc_state_file qmc_state
-# 
-# energy(H::TFIM) = n -> (H.J * (nbonds(H) / nspins(H)) - H.h * ((1.0 / n) - 1))
- include("error.jl")
-# 
-# 
-# mag = mean_and_stderr(mags)
-# abs_mag = mean_and_stderr(abs, mags)
- mag_sqr = mean_and_stderr(x -> x^2, mags)
- println(mag_sqr)
+
+# energy(H::TFIM) = n -> ((H.h != 0) ? (-H.h * ((1.0 / n) - 1)) : 0.0) + H.J * (nbonds(H) / nspins(H))
+include("error.jl")
+mag = mean_and_stderr(mags)
+abs_mag = mean_and_stderr(abs, mags)
+mag_sqr = mean_and_stderr(x -> x^2, mags)
+
+println((mag, abs_mag, mag_sqr))
+
  
 # @time energy_ = jackknife(energy(H), ns)
 # @time corr_time = correlation_time(mags)
-# 
+
 # println()
-# 
+
 # open(info_file, "w") do file_io
 #     streams = [Base.stdout, file_io]
-# 
+
 #     for io in streams
 #         @printf(io, "⟨M⟩   = % .16f +/- %.16f\n", mag.val, mag.err)
 #         @printf(io, "⟨|M|⟩ = % .16f +/- %.16f\n", abs_mag.val, abs_mag.err)
 #         @printf(io, "⟨M^2⟩ = % .16f +/- %.16f\n", mag_sqr.val, mag_sqr.err)
 #         @printf(io, "⟨E⟩   = % .16f +/- %.16f\n\n", energy_.val, energy_.err)
-# 
+
 #         println(io, "Correlation time: $(corr_time)\n")
-# 
+
 #         println(io, "Operator list length: $(2*M)")
 #         println(io, "Number of MC measurements: $(MCS)")
 #         println(io, "Number of equilibration steps: $(EQ_MCS)")
 #         println(io, "Number of skips between measurements: $(skip)\n")
-# 
+
 #         println(io, "Dim = $(Dim), nX = $(nX), PBC = $(PBC), h = $(h), J = $(J_)\n")
-# 
+
 #         println(io, "Samples outputted to file: $(samples_file)")
 #     end
 # end
