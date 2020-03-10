@@ -3,14 +3,10 @@
 # A projector QMC program for the TFIM
 
 using Random
-using ProgressMeter
 Random.seed!(1234)
 
-using DelimitedFiles
-using JLD2
-using Printf
-
-using Lattices
+include("QMC.jl")
+# using QMC
 
 Dim = 1
 nX = 10
@@ -31,7 +27,7 @@ end
 M = 1000 # length of the operator_list is 2M
 MCS = 100_000 # the number of samples to record
 EQ_MCS = div(MCS, 10)
-skip = 5  # number of MC steps to perform between each msmt
+skip = 0  # number of MC steps to perform between each msmt
 
 root = "../data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
 mkpath(root)

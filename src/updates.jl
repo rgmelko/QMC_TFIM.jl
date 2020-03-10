@@ -3,11 +3,6 @@
 # Defines the functions that perform the diagonal update, and also
 # that build the linked list and operator cluster update
 
-include("measurements.jl")
-
-using DataStructures
-
-
 struct ClusterData
     linked_list::Vector{Int}
     leg_types::BitVector

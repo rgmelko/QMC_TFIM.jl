@@ -1,10 +1,6 @@
 # measurements.jl
 #
 # Defines estimators and provides measurements
-using Statistics
-using FFTW
-
-include("qmc.jl")
 
 function sample(qmc_state::BinaryQMCState)
     operator_list = qmc_state.operator_list
