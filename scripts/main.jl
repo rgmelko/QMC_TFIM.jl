@@ -1,3 +1,7 @@
+using DrWatson
+@quickactivate "QMC"
+
+
 # main.jl
 #
 # A projector QMC program for the TFIM
@@ -5,8 +9,20 @@
 using Random
 Random.seed!(1234)
 
-include("QMC.jl")
-# using QMC
+using ProgressMeter
+
+using Measurements
+using Statistics
+using FFTW
+
+using DelimitedFiles
+using JLD2
+using Printf
+using Lattices
+
+using DataStructures
+
+using QMC
 
 Dim = 1
 nX = 6
@@ -36,7 +52,7 @@ info_file = "$(root)info.txt"
 qmc_state_file = "$(root)state.jld2"
 
 # *******  Globals
-include("updates.jl") # functions for the Monte Carlo updates
+# include("updates.jl") # functions for the Monte Carlo updates
 
 H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
@@ -55,8 +71,8 @@ mags = zeros(MCS)
 ns = zeros(MCS)
 
 # @showprogress "MCMC...   " for i in 1:MCS # Monte Carlo Steps
-#     ns[i] = mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H 
-#         #mags[i] = magnetization(qmc_state.left_config)	
+#     ns[i] = mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H
+#         #mags[i] = magnetization(qmc_state.left_config)
 #         #spin_prop = sample(qmc_state)
 #         spin_prop = qmc_state.left_config
 #         mags[i] = magnetization(spin_prop)
@@ -92,7 +108,7 @@ end
 # @time @save qmc_state_file qmc_state
 
 energy(H::TFIM) = n -> ((H.h != 0) ? (-H.h * ((1.0 / n) - 1)) : 0.0) + H.J * (nbonds(H) / nspins(H))
-include("error.jl")
+# include("error.jl")
 mag = mean_and_stderr(mags)
 abs_mag = mean_and_stderr(abs, mags)
 mag_sqr = mean_and_stderr(x -> x^2, mags)
@@ -106,7 +122,7 @@ mag_sqr = mean_and_stderr(x -> x^2, mags)
 
 # println((mag, abs_mag, mag_sqr, energy, heat_cap))
 
- 
+
 @time energy_ = jackknife(energy(H), ns)
 @time corr_time = correlation_time(mags .^ 2)
 

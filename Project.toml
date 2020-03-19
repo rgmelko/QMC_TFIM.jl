@@ -1,4 +1,4 @@
-name = "QMC_TFIM"
+name = "QMC"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -9,6 +9,7 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Lattices = "c21dee59-005f-55b6-acfd-94526b082a96"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
