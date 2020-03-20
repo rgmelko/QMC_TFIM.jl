@@ -519,7 +519,7 @@ function cluster_update_beta!(cluster_data::ClusterData, qmc_state::BinaryQMCSta
 
     end
 
-    ocount = 1  # first leg	
+    ocount = 1  # first leg
     @inbounds for (n, op) in enumerate(operator_list)
         if isbondoperator(op)
             ocount += 4
@@ -536,4 +536,3 @@ function cluster_update_beta!(cluster_data::ClusterData, qmc_state::BinaryQMCSta
 	#println(operator_list)
 
 end
-

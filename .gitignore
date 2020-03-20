@@ -29,3 +29,7 @@ Untitled*.ipynb
 
 # Do not commit data files
 data/
+
+
+# vscode data
+.vscode/

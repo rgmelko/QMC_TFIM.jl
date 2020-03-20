@@ -12,12 +12,13 @@ using Printf
 using Lattices
 
 using DataStructures
+using SparseArrays
 
 import Base: zero
 
 
 export BinaryQMCState, Hamiltonian, TFIM, nspins, nbonds, ClusterData, mc_step!, mc_step_beta!,
-        sample, simultation_cell, magnetization, num_single_site_diag, num_single_site_offdiag,
+        sample, simulation_cell, magnetization, num_single_site_diag, num_single_site_offdiag,
         num_single_site, autocorrelation, correlation_time, jackknife, mean_and_stderr
 
 

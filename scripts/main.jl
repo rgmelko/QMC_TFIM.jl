@@ -1,6 +1,7 @@
 using DrWatson
 @quickactivate "QMC"
 
+using QMC
 
 # main.jl
 #
@@ -21,29 +22,71 @@ using Printf
 using Lattices
 
 using DataStructures
+using ArgParse
 
-using QMC
 
-Dim = 1
-nX = 6
-PBC = false
-h = 1.0
-J_ = 1.0
+s = ArgParseSettings()
+
+
+@add_arg_table! s begin
+    "dims"
+        help = "The dimensions of the square lattice"
+        required = true
+        arg_type = Int
+        nargs = '+'
+    "--periodic", "-p"
+        help = "Periodic BCs"
+        action = :store_true
+    "--field"
+        help = "Strength of the transverse field"
+        arg_type = Float64
+        default = 1.0
+    "--interaction", "-J"
+        help = "Strength of the interaction"
+        arg_type = Float64
+        default = 1.0
+    "-M"
+        help = "Half-size of the operator list"
+        arg_type = Int
+        default = 1000
+    "--measurements", "-n"
+        help = "Number of samples to record"
+        arg_type = Int
+        default = 100_000
+    "--skip", "-s"
+        help = "Number of MC steps to perform between each measurement"
+        arg_type = Int
+        default = 0
+end
+
+parsed_args = parse_args(ARGS, s)
+
+println(parsed_args)
+
+PBC = parsed_args["periodic"]
+h = parsed_args["field"]
+J_ = parsed_args["interaction"]
+
+Dim = length(parsed_args["dims"])
+nX = parsed_args["dims"]
 
 BC = PBC ? Periodic : Fixed
 BC_name = PBC ? "PBC" : "OBC"
 
 if Dim == 1
+    nX = nX[1]
     lattice = Chain(nX; boundary = BC)
+elseif Dim == 2
+    lattice = Square(nX...; boundary = BC)
 else
-    lattice = Square(nX, nX; boundary = BC)
+    error("Unsupported number of dimensions")
 end
 
 # MC parameters
-M = 1000 # length of the operator_list is 2M
-MCS = 100_000 # the number of samples to record
+M = parsed_args["M"] # length of the operator_list is 2M
+MCS = parsed_args["measurements"] # the number of samples to record
 EQ_MCS = div(MCS, 10)
-skip = 0  # number of MC steps to perform between each msmt
+skip = parsed_args["skip"]  # number of MC steps to perform between each msmt
 
 root = "../data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
 mkpath(root)
@@ -52,7 +95,6 @@ info_file = "$(root)info.txt"
 qmc_state_file = "$(root)state.jld2"
 
 # *******  Globals
-# include("updates.jl") # functions for the Monte Carlo updates
 
 H = TFIM(lattice, h, J_)
 qmc_state = BinaryQMCState(H, M)
@@ -108,7 +150,6 @@ end
 # @time @save qmc_state_file qmc_state
 
 energy(H::TFIM) = n -> ((H.h != 0) ? (-H.h * ((1.0 / n) - 1)) : 0.0) + H.J * (nbonds(H) / nspins(H))
-# include("error.jl")
 mag = mean_and_stderr(mags)
 abs_mag = mean_and_stderr(abs, mags)
 mag_sqr = mean_and_stderr(x -> x^2, mags)
@@ -129,7 +170,7 @@ mag_sqr = mean_and_stderr(x -> x^2, mags)
 # println()
 
 open(info_file, "w") do file_io
-    streams = [Base.stdout]
+    streams = [Base.stdout, file_io]
 
     for io in streams
         @printf(io, "⟨M⟩   = % .16f +/- %.16f\n", mag.val, mag.err)
