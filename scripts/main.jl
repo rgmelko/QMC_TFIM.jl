@@ -29,6 +29,16 @@ s = ArgParseSettings()
 
 
 @add_arg_table! s begin
+    "groundstate"
+        help = "Use Projector SSE to simulate the ground state"
+        action = :command
+    "mixedstate"
+        help = "Use vanilla SSE to simulate the system at non-zero temperature"
+        action = :command
+end
+
+
+@add_arg_table! s["groundstate"] begin
     "dims"
         help = "The dimensions of the square lattice"
         required = true
@@ -45,10 +55,12 @@ s = ArgParseSettings()
         help = "Strength of the interaction"
         arg_type = Float64
         default = 1.0
+
     "-M"
         help = "Half-size of the operator list"
         arg_type = Int
         default = 1000
+
     "--measurements", "-n"
         help = "Number of samples to record"
         arg_type = Int
@@ -59,134 +71,195 @@ s = ArgParseSettings()
         default = 0
 end
 
+import_settings!(s["mixedstate"], s["groundstate"])
+
+@add_arg_table! s["mixedstate"] begin
+    "--beta"
+        help = "The inverse-temperature parameter for the simulation"
+        arg_type = Float64
+        default = 10.0
+end
+
+
 parsed_args = parse_args(ARGS, s)
 
-println(parsed_args)
-
-PBC = parsed_args["periodic"]
-h = parsed_args["field"]
-J_ = parsed_args["interaction"]
-
-Dim = length(parsed_args["dims"])
-nX = parsed_args["dims"]
-
-BC = PBC ? Periodic : Fixed
-BC_name = PBC ? "PBC" : "OBC"
-
-if Dim == 1
-    nX = nX[1]
-    lattice = Chain(nX; boundary = BC)
-elseif Dim == 2
-    lattice = Square(nX...; boundary = BC)
+if parsed_args["%COMMAND%"] == "groundstate"
+    groundstate(parsed_args["groundstate"])
 else
-    error("Unsupported number of dimensions")
+    mixedstate(parsed_args["mixedstate"])
 end
 
-# MC parameters
-M = parsed_args["M"] # length of the operator_list is 2M
-MCS = parsed_args["measurements"] # the number of samples to record
-EQ_MCS = div(MCS, 10)
-skip = parsed_args["skip"]  # number of MC steps to perform between each msmt
 
-root = "../data/$(Dim)D/$(nX)/$(BC_name)/J$(J_)/h$(h)/skip$(skip)/"
-mkpath(root)
-samples_file = "$(root)samples.txt"
-info_file = "$(root)info.txt"
-qmc_state_file = "$(root)state.jld2"
+###############################################################################
 
-# *******  Globals
+function init_mc_cli(parsed_args)
+    PBC = parsed_args["periodic"]
+    h = parsed_args["field"]
+    J = parsed_args["interaction"]
 
-H = TFIM(lattice, h, J_)
-qmc_state = BinaryQMCState(H, M)
+    Dim = length(parsed_args["dims"])
+    nX = parsed_args["dims"]
 
-## FINITE-BETA
-# beta = 20.0
-# @showprogress "Warm up..." for i in 1:EQ_MCS
-#     mc_step_beta!(qmc_state, H, beta; eq = true)
+    BC = PBC ? Periodic : Fixed
+    BC_name = PBC ? "PBC" : "OBC"
 
-#     println(length(qmc_state.operator_list))
-# end
-
-
-measurements = zeros(Int, MCS, nspins(H))
-mags = zeros(MCS)
-ns = zeros(MCS)
-
-# @showprogress "MCMC...   " for i in 1:MCS # Monte Carlo Steps
-#     ns[i] = mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H
-#         #mags[i] = magnetization(qmc_state.left_config)
-#         #spin_prop = sample(qmc_state)
-#         spin_prop = qmc_state.left_config
-#         mags[i] = magnetization(spin_prop)
-#     end
-# end
-
-#include("error.jl")
-#mag_sqr = mean_and_stderr(x -> x^2, mags)
-#println(mag_sqr)
-
-@showprogress "Warm up..." for i in 1:EQ_MCS
-    mc_step!(qmc_state, H)
-end
-
-@showprogress "MCMC...   " for i in 1:MCS # Monte Carlo Production Steps
-   mc_step!(qmc_state, H) do cluster_data, qmc_state, H
-       spin_prop = sample(qmc_state)
-       measurements[i, :] = spin_prop
-
-       ns[i] = num_single_site_diag(qmc_state.operator_list)
-       mags[i] = magnetization(spin_prop)
-   end
-
-   for _ in 1:skip
-       mc_step!(qmc_state, H)
-   end
-end
-
-# open(samples_file, "w") do io
-#     writedlm(io, measurements, " ")
-# end
-
-# @time @save qmc_state_file qmc_state
-
-energy(H::TFIM) = n -> ((H.h != 0) ? (-H.h * ((1.0 / n) - 1)) : 0.0) + H.J * (nbonds(H) / nspins(H))
-mag = mean_and_stderr(mags)
-abs_mag = mean_and_stderr(abs, mags)
-mag_sqr = mean_and_stderr(x -> x^2, mags)
-# energy = -(mean_and_stderr(ns) / beta)/nspins(H) + H.J * (nbonds(H) / nspins(H)) + H.h
-# heat_cap = jackknife(ns, ns .^ 2) do ns, ns_sqrd
-#     (ns_sqrd - ns^2 - ns) / nspins(H)
-# end
-
-# heat_cap = (mean(abs2, ns) - mean(ns)^2 - mean(ns)) / nspins(H)
-
-
-# println((mag, abs_mag, mag_sqr, energy, heat_cap))
-
-
-@time energy_ = jackknife(energy(H), ns)
-@time corr_time = correlation_time(mags .^ 2)
-
-# println()
-
-open(info_file, "w") do file_io
-    streams = [Base.stdout, file_io]
-
-    for io in streams
-        @printf(io, "⟨M⟩   = % .16f +/- %.16f\n", mag.val, mag.err)
-        @printf(io, "⟨|M|⟩ = % .16f +/- %.16f\n", abs_mag.val, abs_mag.err)
-        @printf(io, "⟨M^2⟩ = % .16f +/- %.16f\n", mag_sqr.val, mag_sqr.err)
-        @printf(io, "⟨E⟩   = % .16f +/- %.16f\n\n", energy_.val, energy_.err)
-
-        println(io, "Correlation time: $(corr_time)\n")
-
-        println(io, "Operator list length: $(2*M)")
-        println(io, "Number of MC measurements: $(MCS)")
-        println(io, "Number of equilibration steps: $(EQ_MCS)")
-        println(io, "Number of skips between measurements: $(skip)\n")
-
-        println(io, "Dim = $(Dim), nX = $(nX), PBC = $(PBC), h = $(h), J = $(J_)\n")
-
-        println(io, "Samples outputted to file: $(samples_file)")
+    if Dim == 1
+        nX = nX[1]
+        lattice = Chain(nX; boundary = BC)
+    elseif Dim == 2
+        lattice = Square(nX...; boundary = BC)
+    else
+        error("Unsupported number of dimensions")
     end
+
+    # MC parameters
+    M = parsed_args["M"] # length of the operator_list is 2M
+    MCS = parsed_args["measurements"] # the number of samples to record
+    EQ_MCS = div(MCS, 10)
+    skip = parsed_args["skip"]  # number of MC steps to perform between each msmt
+
+    # path = "$(Dim)D/$(nX)/$(BC_name)/J$(J)/h$(h)/skip$(skip)/"
+    d = @ntuple Dim nX BC_name J h skip
+    mc_opts = @ntuple M MCS EQ_MCS skip
+
+    H = TFIM(lattice, h, J)
+    qmc_state = BinaryQMCState(H, M)
+
+    return H, qmc_state, savename(d; digits = 4), mc_opts
+end
+
+
+function make_info_file(info_file, samples_file, mc_opts, observables, corr_time)
+    M, MCS, EQ_MCS, skip = mc_opts
+    mag, abs_mag, mag_sqr, energy = observables
+
+    open(info_file, "w") do file_io
+        streams = [Base.stdout, file_io]
+
+        for io in streams
+            @printf(io, "⟨M⟩   = % .16f +/- %.16f\n", mag.val, mag.err)
+            @printf(io, "⟨|M|⟩ = % .16f +/- %.16f\n", abs_mag.val, abs_mag.err)
+            @printf(io, "⟨M^2⟩ = % .16f +/- %.16f\n", mag_sqr.val, mag_sqr.err)
+            @printf(io, "⟨E⟩   = % .16f +/- %.16f\n\n", energy.val, energy.err)
+
+            println(io, "Correlation time: $(corr_time)\n")
+
+            println(io, "Operator list length: $(2*M)")
+            println(io, "Number of MC measurements: $(MCS)")
+            println(io, "Number of equilibration steps: $(EQ_MCS)")
+            println(io, "Number of skips between measurements: $(skip)\n")
+
+            println(io, "Samples outputted to file: $(samples_file)")
+        end
+    end
+end
+
+
+function save_data(path, mc_opts, qmc_state, measurements, observables, corr_time)
+    info_file = path * "_info.txt"
+    samples_file = path * "_samples.txt"
+    qmc_state_file = path * "_state.jld2"
+
+    open(samples_file, "w") do io
+        writedlm(io, measurements, " ")
+    end
+
+    @time @save qmc_state_file qmc_state
+
+    make_info_file(info_file, samples_file, mc_opts, observables, corr_time)
+end
+
+
+function mixedstate(parsed_args)
+    H, qmc_state, sname, mc_opts = init_mc_cli(parsed_args)
+    beta = parsed_args["beta"]
+
+    M, MCS, EQ_MCS, skip = mc_opts
+
+    path = datadir("sims", "mixedstate", savename((@ntuple beta), sname; digits = 4))
+
+    measurements = zeros(Int, MCS, nspins(H))
+    mags = zeros(MCS)
+    ns = zeros(MCS)
+
+    @showprogress "Warm up..." for i in 1:EQ_MCS
+        mc_step_beta!(qmc_state, H, beta; eq = true)
+    end
+
+    @showprogress "MCMC...   " for i in 1:MCS # Monte Carlo Steps
+        ns[i] = mc_step_beta!(qmc_state, H, beta) do cluster_data, qmc_state, H
+            spin_prop = qmc_state.left_config
+            measurements[i, :] = spin_prop
+            mags[i] = magnetization(spin_prop)
+        end
+
+        for _ in 1:skip
+            mc_step_beta!(qmc_state, H, beta)
+        end
+    end
+
+    mag = mean_and_stderr(mags)
+    abs_mag = mean_and_stderr(abs, mags)
+    mag_sqr = mean_and_stderr(abs2, mags)
+
+    energy = mean_and_stderr(x -> -x/beta, ns) + H.J*nbonds(H) + H.h
+    energy /= nspins(H)
+
+    observables = (mag, abs_mag, mag_sqr, energy)
+
+    # measure correlation time from equilibriation samples
+    @time corr_time = correlation_time(mags .^ 2)
+
+    save_data(path, mc_opts, qmc_state, measurements, observables, corr_time)
+end
+
+
+
+function groundstate(parsed_args)
+    H, qmc_state, sname, mc_opts = init_mc_cli(parsed_args)
+
+    M, MCS, EQ_MCS, skip = mc_opts
+
+    path = datadir("sims", "mixedstate", sname)
+
+    measurements = zeros(Int, MCS, nspins(H))
+    mags = zeros(MCS)
+    ns = zeros(MCS)
+
+    @showprogress "Warm up..." for i in 1:EQ_MCS
+        mc_step!(qmc_state, H)
+    end
+
+    @showprogress "MCMC...   " for i in 1:MCS # Monte Carlo Production Steps
+        mc_step!(qmc_state, H) do cluster_data, qmc_state, H
+            spin_prop = sample(qmc_state)
+            measurements[i, :] = spin_prop
+
+            ns[i] = num_single_site_diag(qmc_state.operator_list)
+            mags[i] = magnetization(spin_prop)
+        end
+
+        for _ in 1:skip
+            mc_step!(qmc_state, H)
+        end
+    end
+
+    mag = mean_and_stderr(mags)
+    abs_mag = mean_and_stderr(abs, mags)
+    mag_sqr = mean_and_stderr(abs2, mags)
+
+    @time energy = jackknife(ns) do n
+        if H.h != 0
+            (-H.h * ((1.0 / n) - 1)) + H.J * (nbonds(H) / nspins(H))
+        else
+            H.J * (nbonds(H) / nspins(H))
+        end
+    end
+
+    observables = (mag, abs_mag, mag_sqr, energy)
+
+    # measure correlation time from equilibriation samples
+    @time corr_time = correlation_time(mags .^ 2)
+
+    save_data(path, mc_opts, qmc_state, measurements, observables, corr_time)
 end
