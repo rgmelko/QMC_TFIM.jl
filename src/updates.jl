@@ -283,8 +283,8 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real; e
     P_norm = beta * H.P_normalization
 
     num_ids = count(isidentity, qmc_state.operator_list)
-    P_remove = min(1, (num_ids + 1) / P_norm)
-    P_accept = min(1, P_norm / num_ids)
+    P_remove = (num_ids + 1) / P_norm
+    P_accept = P_norm / num_ids
 
     spin_prop = copy(qmc_state.left_config)  # the propagated spin state
 
@@ -295,17 +295,18 @@ function diagonal_update_beta!(qmc_state::BinaryQMCState, H::TFIM, beta::Real; e
             if rand() < P_remove
                 qmc_state.operator_list[n] = (0, 0)
                 num_ids += 1
-                P_remove = min(1, (num_ids + 1) / P_norm)
-                P_accept = min(1, P_norm / num_ids)
+                P_remove = (num_ids + 1) / P_norm
+                P_accept = P_norm / num_ids
             end
         else
             if rand() < P_accept
                 success = insert_diagonal_operator!(qmc_state, H, spin_prop, n)
 
                 if success
+                    # save one operation lol
+                    P_remove = num_ids / P_norm
                     num_ids -= 1
-                    P_remove = min(1, (num_ids + 1) / P_norm)
-                    P_accept = min(1, P_norm / num_ids)
+                    P_accept = P_norm / num_ids
                 end
             end
         end
