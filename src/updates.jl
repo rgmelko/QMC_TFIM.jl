@@ -3,14 +3,6 @@
 # Defines the functions that perform the diagonal update, and also
 # that build the linked list and operator cluster update
 
-struct ClusterData
-    linked_list::Vector{Int}
-    leg_types::BitVector
-    associates::Vector{NTuple{3,Int}}
-    first::Vector{Int}
-    last::Union{Vector{Int}, Nothing}
-end
-
 #  (-2,i) is an off-diagonal site operator h(sigma^+_i + sigma^-_i)
 #  (-1,i) is a diagonal site operator h
 #  (0,0) is the identity operator I - NOT USED IN THE PROJECTOR CASE

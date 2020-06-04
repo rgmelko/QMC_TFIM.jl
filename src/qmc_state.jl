@@ -33,3 +33,13 @@ end
 function PottsQMCState(H::Hamiltonian{D,N}, M::Int) where {D,N}
     PottsQMCState{N,typeof(H)}(zero(H), zero(H), init_op_list(2*M))
 end
+
+
+
+struct ClusterData
+    linked_list::Vector{Int}
+    leg_types::BitVector
+    associates::Vector{NTuple{3,Int}}
+    first::Vector{Int}
+    last::Union{Vector{Int}, Nothing}
+end

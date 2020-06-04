@@ -25,71 +25,6 @@ using DataStructures
 using ArgParse
 
 
-s = ArgParseSettings()
-
-
-@add_arg_table! s begin
-    "groundstate"
-        help = "Use Projector SSE to simulate the ground state"
-        action = :command
-    "mixedstate"
-        help = "Use vanilla SSE to simulate the system at non-zero temperature"
-        action = :command
-end
-
-
-@add_arg_table! s["groundstate"] begin
-    "dims"
-        help = "The dimensions of the square lattice"
-        required = true
-        arg_type = Int
-        nargs = '+'
-    "--periodic", "-p"
-        help = "Periodic BCs"
-        action = :store_true
-    "--field"
-        help = "Strength of the transverse field"
-        arg_type = Float64
-        default = 1.0
-    "--interaction", "-J"
-        help = "Strength of the interaction"
-        arg_type = Float64
-        default = 1.0
-
-    "-M"
-        help = "Half-size of the operator list"
-        arg_type = Int
-        default = 1000
-
-    "--measurements", "-n"
-        help = "Number of samples to record"
-        arg_type = Int
-        default = 100_000
-    "--skip", "-s"
-        help = "Number of MC steps to perform between each measurement"
-        arg_type = Int
-        default = 0
-end
-
-import_settings!(s["mixedstate"], s["groundstate"])
-
-@add_arg_table! s["mixedstate"] begin
-    "--beta"
-        help = "The inverse-temperature parameter for the simulation"
-        arg_type = Float64
-        default = 10.0
-end
-
-
-parsed_args = parse_args(ARGS, s)
-
-if parsed_args["%COMMAND%"] == "groundstate"
-    groundstate(parsed_args["groundstate"])
-else
-    mixedstate(parsed_args["mixedstate"])
-end
-
-
 ###############################################################################
 
 function init_mc_cli(parsed_args)
@@ -161,7 +96,7 @@ function save_data(path, mc_opts, qmc_state, measurements, observables, corr_tim
     qmc_state_file = path * "_state.jld2"
 
     open(samples_file, "w") do io
-        writedlm(io, measurements, " ")
+        writedlm(samples_file, measurements, " ")
     end
 
     @time @save qmc_state_file qmc_state
@@ -176,6 +111,7 @@ function mixedstate(parsed_args)
 
     M, MCS, EQ_MCS, skip = mc_opts
 
+    mkpath(datadir("sims", "mixedstate"))
     path = datadir("sims", "mixedstate", savename((@ntuple beta), sname; digits = 4))
 
     measurements = zeros(Int, MCS, nspins(H))
@@ -220,7 +156,8 @@ function groundstate(parsed_args)
 
     M, MCS, EQ_MCS, skip = mc_opts
 
-    path = datadir("sims", "mixedstate", sname)
+    mkpath(datadir("sims", "groundstate"))
+    path = datadir("sims", "groundstate", sname)
 
     measurements = zeros(Int, MCS, nspins(H))
     mags = zeros(MCS)
@@ -262,4 +199,72 @@ function groundstate(parsed_args)
     @time corr_time = correlation_time(mags .^ 2)
 
     save_data(path, mc_opts, qmc_state, measurements, observables, corr_time)
+end
+
+
+###############################################################################
+
+
+s = ArgParseSettings()
+
+
+@add_arg_table! s begin
+    "groundstate"
+        help = "Use Projector SSE to simulate the ground state"
+        action = :command
+    "mixedstate"
+        help = "Use vanilla SSE to simulate the system at non-zero temperature"
+        action = :command
+end
+
+
+@add_arg_table! s["groundstate"] begin
+    "dims"
+        help = "The dimensions of the square lattice"
+        required = true
+        arg_type = Int
+        nargs = '+'
+    "--periodic", "-p"
+        help = "Periodic BCs"
+        action = :store_true
+    "--field"
+        help = "Strength of the transverse field"
+        arg_type = Float64
+        default = 1.0
+    "--interaction", "-J"
+        help = "Strength of the interaction"
+        arg_type = Float64
+        default = 1.0
+
+    "-M"
+        help = "Half-size of the operator list"
+        arg_type = Int
+        default = 1000
+
+    "--measurements", "-n"
+        help = "Number of samples to record"
+        arg_type = Int
+        default = 100_000
+    "--skip", "-s"
+        help = "Number of MC steps to perform between each measurement"
+        arg_type = Int
+        default = 0
+end
+
+import_settings!(s["mixedstate"], s["groundstate"])
+
+@add_arg_table! s["mixedstate"] begin
+    "--beta"
+        help = "The inverse-temperature parameter for the simulation"
+        arg_type = Float64
+        default = 10.0
+end
+
+
+parsed_args = parse_args(ARGS, s)
+
+if parsed_args["%COMMAND%"] == "groundstate"
+    groundstate(parsed_args["groundstate"])
+else
+    mixedstate(parsed_args["mixedstate"])
 end
