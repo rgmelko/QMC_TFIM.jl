@@ -138,7 +138,7 @@ function mixedstate(parsed_args)
     abs_mag = mean_and_stderr(abs, mags)
     mag_sqr = mean_and_stderr(abs2, mags)
 
-    energy = mean_and_stderr(x -> -x/beta, ns) + H.J*nbonds(H) + H.h
+    energy = mean_and_stderr(x -> -x/beta, ns) + H.J*nbonds(H) + H.h*nspins(H)
     energy /= nspins(H)
 
     observables = (mag, abs_mag, mag_sqr, energy)
