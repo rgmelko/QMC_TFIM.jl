@@ -14,11 +14,7 @@ struct TFIM{N} <: Hamiltonian{2,N}
     Nb::Int
 end
 
-function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64) where {L<:BoundedLattice{N}} where {N}
-    # bond_spin = lattice_bond_spins(lattice)
-
-    # Ns, Nb = length(lattice), length(bond_spin)
-
+function TFIM(bond_spin::Vector{NTuple{2, Int}}, Ns::Int, Nb::Int, h::Float64, J::Float64) where {L<:BoundedLattice{N}} where {N}
     # define the Metropolis probability as a constant
     # https://pitp.phas.ubc.ca/confs/sherbrooke2012/archives/Melko_SSEQMC.pdf
     # equation 1.43
@@ -31,6 +27,11 @@ function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64) where {L<:Bou
 
     return TFIM{N,L}(bond_spin, h, J, P_h, P_J, P_normalization, Ns, Nb)
 end
+
+zero(H::Hamiltonian{2}) = falses(nspins(H))
+zero(H::Hamiltonian) = zeros(nspins(H))
+one(H::Hamiltonian{2}) = trues(nspins(H))
+one(H::Hamiltonian) = ones(nspins(H))
 
 nspins(H::TFIM) = H.Ns
 nbonds(H::TFIM) = H.Nb
