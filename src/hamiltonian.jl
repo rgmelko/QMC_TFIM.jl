@@ -14,7 +14,7 @@ struct TFIM{N} <: Hamiltonian{2,N}
     Nb::Int
 end
 
-function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64)
+function TFIM(bond_spin, Dim::Int, Ns::Int, Nb::Int, h::Float64, J::Float64)
     # bond_spin = lattice_bond_spins(lattice)
 
     # Ns, Nb = length(lattice), length(bond_spin)
@@ -29,7 +29,7 @@ function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64)
     P_h /= P_normalization
     P_J /= P_normalization
 
-    return TFIM{N,L}(bond_spin, h, J, P_h, P_J, P_normalization, Ns, Nb)
+    return TFIM{Dim}(bond_spin, h, J, P_h, P_J, P_normalization, Ns, Nb)
 end
 
 zero(H::Hamiltonian{2}) = falses(nspins(H))

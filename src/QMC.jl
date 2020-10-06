@@ -18,10 +18,11 @@ import Base: zero
 
 export BinaryQMCState, Hamiltonian, TFIM, nspins, nbonds, ClusterData, mc_step!, mc_step_beta!,
         sample, simulation_cell, magnetization, num_single_site_diag, num_single_site_offdiag,
-        num_single_site, autocorrelation, correlation_time, jackknife, mean_and_stderr
+        num_single_site, autocorrelation, correlation_time, jackknife, mean_and_stderr,
+        lattice_bond_spins
 
 
-# include("lattice.jl")
+include("lattice.jl")
 include("hamiltonian.jl")
 include("qmc_state.jl")
 include("measurements.jl")

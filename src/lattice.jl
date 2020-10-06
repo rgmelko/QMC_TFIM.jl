@@ -4,24 +4,27 @@
 # The main data structure is the bond-spin index array, bond_spin[nBond,2]
 
 
-function lattice_bond_spins{1}(nX::Int, pbc::Bool=true)
+function lattice_bond_spins(nX::Int, pbc::Bool=true)
     Nb = pbc ? nX : nX-1
     Ns = nX
 
     bond_spin = [(0, 0) for _ in 1:Nb]
     for i in 1:Nb
-        bond_spin = (i, i+1)
+        bond_spin[i] = (i, i+1)
     end
 
     if pbc
         bond_spin[end] = (Nb, 1)
     end
 
-    return bond_spin
+    return bond_spin, Ns, Nb
 end
 
 # 2D square lattice
-function lattice_bond_spins{2}(nX::Int, pbc::Bool=true)
+function lattice_bond_spins(nX::NTuple{2, Int}, pbc::Bool=true)
+    (nX[1] == nX[2]) || throw(ArgumentError("Currently only supports square lattices!"))
+    L = nX[1]
+
     Ns = L * L
     Nb = pbc ? 2 * Ns : 2 * (Ns - L)
     bond_spin = [(0, 0) for _ in 1:Nb]
@@ -67,5 +70,5 @@ function lattice_bond_spins{2}(nX::Int, pbc::Bool=true)
         end
     end
 
-    return bond_spin
+    return bond_spin, Ns, Nb
 end

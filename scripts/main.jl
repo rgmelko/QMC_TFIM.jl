@@ -35,14 +35,14 @@ function init_mc_cli(parsed_args)
     Dim = length(parsed_args["dims"])
     nX = parsed_args["dims"]
 
-    BC = PBC ? Periodic : Fixed
     BC_name = PBC ? "PBC" : "OBC"
 
     if Dim == 1
         nX = nX[1]
-        lattice = Chain(nX; boundary = BC)
+        bond_spin, Ns, Nb = lattice_bond_spins(nX, PBC)
     elseif Dim == 2
-        lattice = Square(nX...; boundary = BC)
+        bond_spin, Ns, Nb = lattice_bond_spins(nX, PBC)
+        nX = nX[1]
     else
         error("Unsupported number of dimensions")
     end
@@ -56,10 +56,9 @@ function init_mc_cli(parsed_args)
     # path = "$(Dim)D/$(nX)/$(BC_name)/J$(J)/h$(h)/skip$(skip)/"
     d = @ntuple Dim nX BC_name J h skip M
     mc_opts = @ntuple M MCS EQ_MCS skip
-    bond_spin = lattice_bond_spins(lattice)
 
-    Ns, Nb = length(lattice), length(bond_spin)
-    H = TFIM(bond_spin, Ns, Nb, h, J)
+    # Ns, Nb = length(lattice), length(bond_spin)
+    H = TFIM(bond_spin, Dim, Ns, Nb, h, J)
     qmc_state = BinaryQMCState(H, M)
 
     return H, qmc_state, savename(d; digits = 4), mc_opts
