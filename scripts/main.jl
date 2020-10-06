@@ -56,8 +56,10 @@ function init_mc_cli(parsed_args)
     # path = "$(Dim)D/$(nX)/$(BC_name)/J$(J)/h$(h)/skip$(skip)/"
     d = @ntuple Dim nX BC_name J h skip M
     mc_opts = @ntuple M MCS EQ_MCS skip
+    bond_spin = lattice_bond_spins(lattice)
 
-    H = TFIM(lattice, h, J)
+    Ns, Nb = length(lattice), length(bond_spin)
+    H = TFIM(bond_spin, Ns, Nb, h, J)
     qmc_state = BinaryQMCState(H, M)
 
     return H, qmc_state, savename(d; digits = 4), mc_opts
