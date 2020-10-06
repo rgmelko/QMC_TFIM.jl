@@ -14,6 +14,8 @@ using DataStructures
 using SparseArrays
 
 import Base: zero
+import Base: length, size, eltype, setindex!, getindex, firstindex, lastindex, rand
+
 
 
 export BinaryQMCState, Hamiltonian, TFIM, nspins, nbonds, ClusterData, mc_step!, mc_step_beta!,
@@ -23,6 +25,7 @@ export BinaryQMCState, Hamiltonian, TFIM, nspins, nbonds, ClusterData, mc_step!,
 
 
 include("lattice.jl")
+include("op_sampler.jl")
 include("hamiltonian.jl")
 include("qmc_state.jl")
 include("measurements.jl")

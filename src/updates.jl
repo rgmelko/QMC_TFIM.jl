@@ -42,22 +42,27 @@ end
 mc_step_beta!(qmc_state, H, beta; eq = false) = mc_step_beta!((args...) -> nothing, qmc_state, H, beta; eq = eq)
 
 
-# returns true is operator insertion succeeded
+# returns true if operator insertion succeeded
 function insert_diagonal_operator!(qmc_state::BinaryQMCState, H::TFIM, spin_prop, n)
-    rr = rand()
-    if rr < H.P_h  # probability to choose a single-site operator
-        qmc_state.operator_list[n] = (-1, rand(1:H.Ns))
+    # rr = rand()
+    # if rr < H.P_h  # probability to choose a single-site operator
+    #     qmc_state.operator_list[n] = (-1, rand(1:H.Ns))
+    #     return true
+    # else
+    #     site1, site2 = H.bond_spin[rand(1:H.Nb)]
+    #     # spins at each end of the bond must be the same
+    #     if spin_prop[site1] == spin_prop[site2]
+    #         qmc_state.operator_list[n] = (site1, site2)
+    #         return true
+    #     end
+    # end
+    site1, site2 = rand(H.op_sampler)
+    if site1 < 0 || spin_prop[site1] == spin_prop[site2]
+        qmc_state.operator_list[n] = (site1, site2)
         return true
     else
-        site1, site2 = H.bond_spin[rand(1:H.Nb)]
-        # spins at each end of the bond must be the same
-        if spin_prop[site1] == spin_prop[site2]
-            qmc_state.operator_list[n] = (site1, site2)
-            return true
-        end
+        return false
     end
-
-    return false
 end
 
 
