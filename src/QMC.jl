@@ -9,7 +9,6 @@ using FFTW
 using DelimitedFiles
 using JLD2
 using Printf
-using Lattices
 
 using DataStructures
 using SparseArrays
@@ -22,7 +21,7 @@ export BinaryQMCState, Hamiltonian, TFIM, nspins, nbonds, ClusterData, mc_step!,
         num_single_site, autocorrelation, correlation_time, jackknife, mean_and_stderr
 
 
-include("lattice.jl")
+# include("lattice.jl")
 include("hamiltonian.jl")
 include("qmc_state.jl")
 include("measurements.jl")
