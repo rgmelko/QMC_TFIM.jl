@@ -14,7 +14,7 @@ struct TFIM{N} <: Hamiltonian{2,N}
     Nb::Int
 end
 
-function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64) where {L<:BoundedLattice{N}} where {N}
+function TFIM(bond_spin, Ns::Int, Nb::Int, h::Float64, J::Float64)
     # bond_spin = lattice_bond_spins(lattice)
 
     # Ns, Nb = length(lattice), length(bond_spin)
